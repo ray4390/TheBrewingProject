@@ -62,6 +62,26 @@ arbitrary multi-step sequences, brew reprocessing, structure matching,
 commands, drunken text, metadata, SQLite shutdown draining, and registry
 reload cleanup.
 
+The CI job then tests that same shaded JAR (without rebuilding it) on Paper
+26.2 build 126. To reproduce the lifecycle suite locally:
+
+```bash
+python3 scripts/test-paper-26.2.py \
+  --jar bukkit-impl/build/libs/TheBrewingProject-<version>.jar \
+  --java "$JAVA_HOME/bin/java"
+```
+
+The harness verifies Paper's pinned SHA-256, creates an isolated temporary
+server, accepts the EULA only there, and performs fresh start/stop, restart,
+five reloads, shutdown, and a final restart. It seeds an upstream schema-v3
+fixture containing a version-0 brew in a barrel, distillery, and cauldron plus
+a persisted drunken state. The structure coordinates are deliberately in an
+unloaded distant chunk; row counts and SQLite integrity must remain unchanged.
+It also checks the upstream `900a3f4d` default-resource hashes embedded in the
+JAR, deterministic counts (29 recipes and 3 structures), `/tbp version`, and
+fatal runtime log patterns. `--optional-plugin /path/to/plugin.jar` is
+repeatable; CI runs a second lifecycle suite with PlaceholderAPI 2.12.3.
+
 ## Paper API updates
 
 For a later Paper release:
@@ -112,6 +132,14 @@ branch. Never rebase or force-push a shared production branch.
   Reload keeps the live database instance used by registered
   listeners, drains open inventories, and flushes writes before rebuilding
   in-memory registries.
+- Database shutdown waits for dependent future stages queued behind an earlier
+  flush barrier before closing Hikari.
+- Barrel and distillery writes stay on the serialized database worker, and
+  world unload closes open inventories before detaching their runtime objects.
+- Recipe and persisted-world loads carry reload generations, preventing an
+  older asynchronous load from publishing into a newer registry.
+- Recipe-loaded event dispatch is always asynchronous, including when every
+  ingredient future was already complete.
 - Optional integrations are isolated: incompatible optional plugins are
   disabled with an actionable warning instead of aborting core brewing.
 - Malformed custom structures are skipped individually; valid structures stay
@@ -123,6 +151,8 @@ branch. Never rebase or force-push a shared production branch.
 - Brew equality includes metadata so metadata-only changes are persistable.
 - Cosmetic resource-pack inspection failures fall back to configured/default
   colors instead of blocking the plugin.
+- Resource-pack HTTP handling follows redirects, has a ten-second request
+  timeout, preserves interruption, and has no Netty/AWS runtime dependency.
 
 No PDC key, NamespacedKey, brew serialization version, or SQLite schema version
 was changed for the Paper 26.2 port. Version-0 brew JSON remains readable.
@@ -131,22 +161,22 @@ was changed for the Paper 26.2 port. Version-0 brew JSON remains readable.
 
 1. Fetch upstream and review commits not yet merged.
 2. Run `./gradlew clean build --no-daemon` with Java 25.
-3. Start a new disposable Paper 26.2 build 126 server with the shaded JAR.
-4. Confirm startup reports `supported=true`, expected recipe/structure counts,
-   and only the optional integrations actually installed.
-5. Run `/tbp reload`, stop normally, restart, and inspect all three log phases.
-6. Back up the production `plugins/TheBrewingProject` directory and world
+3. Run `scripts/test-paper-26.2.py` against the shaded JAR (CI performs this
+   both without optional plugins and with PlaceholderAPI).
+4. Confirm the harness reports all four lifecycles and all five reloads passed.
+5. Back up the production `plugins/TheBrewingProject` directory and world
    before deployment. Never test migrations first on the only production copy.
-7. Copy the shaded JAR, retain the previous JAR and data backup for rollback,
+6. Replace the old plugin JAR, retain it and the data backup for rollback,
    start the server, and repeat the log checks.
-8. Tag the reviewed commit and attach the exact CI-produced JAR plus checksums
+7. Tag the reviewed commit and attach the exact CI-produced JAR plus checksums
    to the release.
 
-## Manual live-server acceptance matrix
+## Residual live observation matrix
 
-MockBukkit and logic tests cannot prove client rendering, real chunk lifecycle,
-inventory packet behavior, or interaction with third-party plugins. Before a
-production promotion, verify:
+MockBukkit, logic tests, and the automated real-Paper lifecycle suite cannot
+drive a real player client. These are not a requirement for a second server;
+after a normal backup and JAR replacement, observe these paths during ordinary
+production use and retain the previous JAR/data backup for rollback:
 
 - add/extract ingredients and brews from heated and unheated cauldrons; test
   invalid ingredients, quantities, under/over-cooking, mixing, and readdition;
@@ -161,14 +191,11 @@ production promotion, verify:
   hangover/withdrawal, death, logout/login, and restart persistence;
 - run major player/admin commands with and without permissions and malformed
   arguments;
-- run with no resource pack, the RayCraft pack, a missing pack, and invalid
-  color/model definitions;
-- run with no optional plugins, then with RayCraft's exact PlaceholderAPI,
-  Vault/economy provider, LuckPerms, Geyser, and Floodgate stack. TBP has no
-  hard dependency on an economy provider and must not assume Essentials;
-- corrupt one copied recipe/structure configuration intentionally and confirm
-  diagnostics are actionable while unrelated valid content still loads.
+- observe normal item colors/models with RayCraft's existing resource pack;
+- confirm the existing PlaceholderAPI, Vault/economy provider, LuckPerms,
+  Geyser, and Floodgate stack remains enabled. TBP has no Vault integration or
+  economy-provider dependency and does not assume Essentials.
 
-Keep the completed checklist and server log with the release record. Any test
-that changes stored data must run against a disposable copy, never the live
-world or its only backup.
+Do not deliberately corrupt configuration or exercise destructive failure
+scenarios on production. Those cases belong in the automated disposable
+harness or a copied backup. Keep the first-start log with the release record.
