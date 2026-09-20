@@ -19,17 +19,17 @@ public class StructureRegistry {
     private final Map<StructureType, Map<BlockType, Set<BreweryStructure>>> structuresWithMaterials = new HashMap<>();
     private final Map<StructureType, Set<BreweryStructure>> structures = new HashMap<>();
 
-    public Optional<BreweryStructure> getStructure(@NonNull String key) {
+    public synchronized Optional<BreweryStructure> getStructure(@NonNull String key) {
         Preconditions.checkNotNull(key);
         return Optional.ofNullable(structureNames.get(key));
     }
 
-    public Set<BreweryStructure> getPossibleStructures(@NonNull BlockType material, StructureType<?> structureType) {
+    public synchronized Set<BreweryStructure> getPossibleStructures(@NonNull BlockType material, StructureType<?> structureType) {
         Preconditions.checkNotNull(material);
         return structuresWithMaterials.computeIfAbsent(structureType, ignored -> new HashMap<>()).getOrDefault(material, Set.of());
     }
 
-    public void addStructure(@NonNull BreweryStructure structure) {
+    public synchronized void addStructure(@NonNull BreweryStructure structure) {
         Preconditions.checkNotNull(structure);
         structureNames.put(structure.getName(), structure);
         structures.computeIfAbsent(structure.getMeta(StructureMeta.TYPE), ignored -> new HashSet<>()).add(structure);
@@ -40,17 +40,17 @@ public class StructureRegistry {
         }
     }
 
-    public Collection<BreweryStructure> getStructures(StructureType structureType) {
+    public synchronized Collection<BreweryStructure> getStructures(StructureType structureType) {
         return structures.computeIfAbsent(structureType, ignored -> new HashSet<>());
     }
 
-    public void clear() {
+    public synchronized void clear() {
         structures.clear();
         structureNames.clear();
         structuresWithMaterials.clear();
     }
 
-    public int size() {
+    public synchronized int size() {
         return structureNames.size();
     }
 }

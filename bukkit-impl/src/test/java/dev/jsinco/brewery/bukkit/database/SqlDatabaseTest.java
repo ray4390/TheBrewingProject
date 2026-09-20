@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.concurrent.Executor;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -45,6 +46,21 @@ class SqlDatabaseTest {
         } finally {
             reopened.close();
         }
+    }
+
+    @Test
+    void closeDrainsDependentWorkQueuedBehindFlushBarrier() throws Exception {
+        SqlDatabase database = new SqlDatabase(DatabaseDriver.SQLITE);
+        database.init(tempDirectory.toFile());
+        TestSession session = database.startSession((executor, ignored) -> new TestSession(executor));
+        AtomicBoolean dependentWorkFinished = new AtomicBoolean();
+        CompletableFuture<Void> first = session.execute(() -> {
+        });
+        first.thenRunAsync(() -> dependentWorkFinished.set(true), session.executor());
+
+        database.close();
+
+        assertTrue(dependentWorkFinished.get());
     }
 
     private record TestSession(Executor executor) implements Session<TestSession> {

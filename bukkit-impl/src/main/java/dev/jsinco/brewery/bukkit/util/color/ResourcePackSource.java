@@ -1,9 +1,7 @@
 package dev.jsinco.brewery.bukkit.util.color;
 
 import dev.jsinco.brewery.bukkit.compat.PaperCompatibility;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import org.jspecify.annotations.Nullable;
-import software.amazon.awssdk.http.HttpStatusCode;
 import team.unnamed.creative.ResourcePack;
 import team.unnamed.creative.serialize.minecraft.MinecraftResourcePackReader;
 
@@ -41,7 +39,7 @@ public interface ResourcePackSource {
                     .uri(uri)
                     .timeout(Duration.ofSeconds(10))
                     .headers(
-                            HttpHeaderNames.USER_AGENT.toString(), "Minecraft Java/" + PaperCompatibility.TARGET_MINECRAFT_VERSION,
+                            "User-Agent", "Minecraft Java/" + PaperCompatibility.TARGET_MINECRAFT_VERSION,
                             "X-Minecraft-Version", PaperCompatibility.TARGET_MINECRAFT_VERSION,
                             "X-Minecraft-UUID", (playerUuid == null ? UUID.randomUUID() : playerUuid).toString().replace("-", "")
                     ).GET()
@@ -50,7 +48,7 @@ public interface ResourcePackSource {
                     .followRedirects(HttpClient.Redirect.ALWAYS)
                     .build()) {
                 HttpResponse<byte[]> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() != HttpStatusCode.OK) {
+                if (response.statusCode() != 200) {
                     throw new IOException(String.format("HTTP response %s: %s", response.statusCode(), new String(response.body(), StandardCharsets.UTF_8)));
                 }
                 // Keep the legacy sha256 component for binary/source compatibility. It

@@ -107,6 +107,10 @@ public class ResourcePackColors {
         for (ResourcePackSource source : List.copyOf(sources)) {
             try {
                 output.add(source.readPack());
+            } catch (InterruptedException exception) {
+                // Shutdown/cancellation must not be consumed as an ordinary
+                // malformed-pack failure.
+                throw exception;
             } catch (Exception e) {
                 Logger.logDev("Could not read resource pack '%s', invalid format".formatted(source.asString()), LoggingModule.RESOURCE_PACK_PARSING);
             }

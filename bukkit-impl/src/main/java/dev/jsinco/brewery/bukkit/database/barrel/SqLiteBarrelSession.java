@@ -21,8 +21,8 @@ import dev.jsinco.brewery.database.PersistenceSupplier;
 import dev.jsinco.brewery.database.UncheckedPersistenceException;
 import dev.jsinco.brewery.database.sql.SqlStatements;
 import dev.jsinco.brewery.util.DecoderEncoder;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
 import org.joml.Matrix3d;
 
@@ -118,7 +118,7 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
             } catch (SQLException e) {
                 throw new UncheckedPersistenceException(e);
             }
-        });
+        }, executor);
     }
 
     @Override
@@ -172,15 +172,16 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
     }
 
     @Override
-    public CompletableFuture<List<BukkitBarrel>> findBarrels(UUID worldUuid) {
+    public CompletableFuture<List<BukkitBarrel>> findBarrels(World world) {
+        UUID worldUuid = world.getUID();
         return fetch(() -> {
             List<BukkitBarrel> output = new ArrayList<>();
             try (Connection connection = connectionSupplier.getUnchecked(); PreparedStatement preparedStatement = connection.prepareStatement(BARREL_STATEMENTS.get(SqlStatements.Type.FIND))) {
                 preparedStatement.setBytes(1, DecoderEncoder.asBytes(worldUuid));
                 ResultSet resultSet = preparedStatement.executeQuery();
                 while (resultSet.next()) {
-                    Location worldOrigin = new Location(Bukkit.getWorld(worldUuid), resultSet.getInt("origin_x"), resultSet.getInt("origin_y"), resultSet.getInt("origin_z"));
-                    Location uniqueLocation = new Location(Bukkit.getWorld(worldUuid), resultSet.getInt("unique_x"), resultSet.getInt("unique_y"), resultSet.getInt("unique_z"));
+                    Location worldOrigin = new Location(world, resultSet.getInt("origin_x"), resultSet.getInt("origin_y"), resultSet.getInt("origin_z"));
+                    Location uniqueLocation = new Location(world, resultSet.getInt("unique_x"), resultSet.getInt("unique_y"), resultSet.getInt("unique_z"));
                     Matrix3d transform = DecoderEncoder.deserializeTransformation(resultSet.getString("transformation"));
                     String format = resultSet.getString("format");
                     BarrelType type = BreweryRegistry.BARREL_TYPE.get(BreweryKey.parse(resultSet.getString("barrel_type")));

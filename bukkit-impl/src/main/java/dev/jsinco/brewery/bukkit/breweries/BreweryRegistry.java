@@ -1,6 +1,7 @@
 package dev.jsinco.brewery.bukkit.breweries;
 
 import dev.jsinco.brewery.api.breweries.InventoryAccessible;
+import dev.jsinco.brewery.api.breweries.StructureHolder;
 import dev.jsinco.brewery.api.structure.SinglePositionStructure;
 import dev.jsinco.brewery.api.structure.StructureType;
 import dev.jsinco.brewery.api.vector.BreweryLocation;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -79,6 +81,33 @@ public final class BreweryRegistry {
         inventoryAccessible.getInventories().forEach(inventories::remove);
     }
 
+    /**
+     * Detaches runtime-only state for an unloading world without deleting any
+     * persisted brewery records. Open inventories are synchronized first so
+     * their latest contents are queued for persistence before their Bukkit
+     * inventory objects and World reference become stale.
+     */
+    public void unloadWorld(UUID worldUuid) {
+        activeSingleBlockStructures.keySet().removeIf(location -> location.worldUuid().equals(worldUuid));
+
+        synchronized (opened) {
+            opened.values().forEach(structures -> structures.removeIf(structure -> {
+                if (!belongsToWorld(structure, worldUuid)) {
+                    return false;
+                }
+                structure.close(true);
+                structure.getInventories().forEach(inventories::remove);
+                return true;
+            }));
+        }
+        inventories.entrySet().removeIf(entry -> belongsToWorld(entry.getValue(), worldUuid));
+    }
+
+    private static boolean belongsToWorld(InventoryAccessible<ItemStack, Inventory> inventoryAccessible, UUID worldUuid) {
+        return inventoryAccessible instanceof StructureHolder<?> holder
+                && holder.getStructure().getUnique().worldUuid().equals(worldUuid);
+    }
+
     public void clear() {
         activeSingleBlockStructures.forEach((ignored, structure) -> structure.destroy());
         activeSingleBlockStructures.clear();
@@ -102,7 +131,7 @@ public final class BreweryRegistry {
 
     public int countOpened(StructureType<?> type) {
         synchronized (opened) {
-            return opened.get(type).size();
+            return opened.getOrDefault(type, Set.of()).size();
         }
     }
 }

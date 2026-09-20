@@ -131,6 +131,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -160,6 +161,7 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
     private ModifierManager modifierManager = new ModifierManagerImpl();
     private BreweryTranslator translator;
     private boolean successfulLoad = false;
+    private final AtomicLong recipeLoadGeneration = new AtomicLong();
     private final BukkitContext metrics = new BukkitContext.Factory(
             this,
             "2ee682246967303e517be0d593fe7a01"
@@ -272,16 +274,6 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         worldEventListener.init();
         recipeRegistry.clear();
         loadRecipes();
-        DefaultRecipeReader.readDefaultRecipes(this.getDataFolder()).forEach((string, defaultRecipe) -> defaultRecipe
-                .whenComplete((defaultRecipe1, throwable) -> {
-                    if (throwable != null) {
-                        Logger.logErr("Could not read default recipe: " + string);
-                        Logger.logErr(throwable);
-                        return;
-                    }
-                    this.recipeRegistry.registerDefaultRecipe(string, defaultRecipe1);
-                })
-        );
         loadDrunkenReplacements();
         loadTimeFormats();
         new TBPReloadEvent().callEvent();
@@ -413,16 +405,6 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         IngredientsSection.load(this.getDataFolder(), serializers());
         IngredientsSection.validate(BukkitIngredientManager.INSTANCE, BukkitIngredientUtil::tagValuesFromString);
         loadRecipes();
-        DefaultRecipeReader.readDefaultRecipes(this.getDataFolder()).forEach((string, defaultRecipe) -> defaultRecipe
-                .whenComplete((defaultRecipe1, throwable) -> {
-                    if (throwable != null) {
-                        Logger.logErr("Could not read default recipe: " + string);
-                        Logger.logErr(throwable);
-                        return;
-                    }
-                    this.recipeRegistry.registerDefaultRecipe(string, defaultRecipe1);
-                })
-        );
         CompletableFuture.allOf(integrationManager.retrieve(IntegrationTypes.ITEM).stream().map(ItemIntegration::initialized)
                         .toArray(CompletableFuture<?>[]::new))
                 .thenAccept(ignored -> ingredientManagerFuture.complete(new ResolvedIngredientManagerImpl()));
@@ -434,6 +416,10 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
 
     @Override
     public void onDisable() {
+        recipeLoadGeneration.incrementAndGet();
+        if (worldEventListener != null) {
+            worldEventListener.invalidatePendingLoads();
+        }
         closeDatabase();
         this.metrics.shutdown();
     }
@@ -469,14 +455,42 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
     }
 
     private void loadRecipes() {
+        long generation = recipeLoadGeneration.incrementAndGet();
         RecipeReader<ItemStack> recipeReader = new RecipeReader<>(this.getDataFolder(), new BukkitRecipeResultReader(), BukkitIngredientManager.INSTANCE);
         List<CompletableFuture<RecipeImpl<ItemStack>>> recipeFutures = recipeReader.readRecipes();
-        CompletableFuture.allOf(recipeFutures.toArray(CompletableFuture<?>[]::new))
-                .thenRun(() -> {
+        var defaultRecipeFutures = DefaultRecipeReader.readDefaultRecipes(this.getDataFolder());
+        var safeDefaultRecipeFutures = defaultRecipeFutures.entrySet().stream()
+                .collect(Collectors.toMap(
+                        java.util.Map.Entry::getKey,
+                        entry -> entry.getValue().exceptionally(throwable -> {
+                            Logger.logErr("Could not read default recipe '" + entry.getKey() + "': " + throwable.getMessage());
+                            return null;
+                        })
+                ));
+        List<CompletableFuture<?>> allFutures = Stream.concat(
+                        recipeFutures.stream(),
+                        safeDefaultRecipeFutures.values().stream()
+                )
+                .toList();
+        CompletableFuture.allOf(allFutures.toArray(CompletableFuture<?>[]::new))
+                // The event is explicitly asynchronous. thenRun() is allowed to
+                // execute inline when all ingredients are already resolved.
+                .thenRunAsync(() -> {
+                    // A newer reload owns the registries. Never publish results
+                    // from an earlier asynchronous parse into the new state.
+                    if (generation != recipeLoadGeneration.get()) {
+                        return;
+                    }
                     recipeFutures.stream()
                             .map(future -> future.getNow(null))
                             .filter(Objects::nonNull)
                             .forEach(recipeRegistry::registerRecipe);
+                    safeDefaultRecipeFutures.forEach((name, future) -> {
+                        var recipe = future.getNow(null);
+                        if (recipe != null) {
+                            recipeRegistry.registerDefaultRecipe(name, recipe);
+                        }
+                    });
                     new AsyncRecipesLoadedEvent(recipeRegistry).callEvent();
                     String integrations = integrationManager.getIntegrationRegistry().getAllIntegrations().stream()
                             .map(integration -> integration.getId())
@@ -486,7 +500,8 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
                             + ", recipes=" + recipeRegistry.getRecipes().size()
                             + ", structures=" + structureRegistry.size()
                             + ", integrations=" + (integrations.isEmpty() ? "none" : integrations));
-                });
+                })
+                .exceptionally(Logger::logAndTrackErr);
     }
 
     private void saveResources() {

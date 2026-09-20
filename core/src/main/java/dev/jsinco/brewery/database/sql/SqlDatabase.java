@@ -17,15 +17,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class SqlDatabase implements PersistenceHandler, AutoCloseable {
 
     private static final int BREWERY_DATABASE_VERSION = 3;
     private final DatabaseDriver driver;
     private HikariDataSource hikariDataSource;
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
     public SqlDatabase(DatabaseDriver databaseDriver) {
         this.driver = databaseDriver;
@@ -142,8 +142,21 @@ public class SqlDatabase implements PersistenceHandler, AutoCloseable {
     @Override
     public synchronized void close() {
         if (!executor.isShutdown()) {
-            flush().join();
+            // A single barrier is insufficient: completing a queued future can
+            // enqueue a dependent database stage behind that barrier. Continue
+            // placing barriers until one completes with no work behind it.
+            do {
+                flush().join();
+            } while (!executor.getQueue().isEmpty());
             executor.shutdown();
+            try {
+                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Database worker did not drain within 30 seconds; connection pool left open to protect queued writes");
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while draining the database worker; connection pool left open to protect queued writes", exception);
+            }
         }
         if (hikariDataSource != null && !hikariDataSource.isClosed()) {
             hikariDataSource.close();

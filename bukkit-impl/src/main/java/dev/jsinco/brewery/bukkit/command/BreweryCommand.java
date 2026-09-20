@@ -8,6 +8,7 @@ import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.command.argument.EventArgument;
 import dev.jsinco.brewery.bukkit.command.argument.OfflinePlayerArgument;
 import dev.jsinco.brewery.bukkit.command.argument.OfflinePlayerSelectorArgumentResolver;
+import dev.jsinco.brewery.bukkit.compat.PaperCompatibility;
 import dev.jsinco.brewery.bukkit.util.BukkitMessageUtil;
 import dev.jsinco.brewery.configuration.Config;
 import dev.jsinco.brewery.api.event.DrunkEvent;
@@ -84,7 +85,14 @@ public class BreweryCommand {
                 ).then(Commands.literal("version")
                         .requires(commandSourceStack -> commandSourceStack.getSender().hasPermission("brewery.command.version"))
                         .executes(commandContext -> {
-                            MessageUtil.message(commandContext.getSource().getSender(), "tbp.command.version", Placeholder.unparsed("version", TheBrewingProject.getInstance().getPluginMeta().getVersion()));
+                            CommandSender sender = commandContext.getSource().getSender();
+                            MessageUtil.message(sender, "tbp.command.version", Placeholder.unparsed("version", TheBrewingProject.getInstance().getPluginMeta().getVersion()));
+                            sender.sendMessage(Component.text(
+                                    "RayCraft fork | target Minecraft " + PaperCompatibility.TARGET_MINECRAFT_VERSION
+                                            + " | detected Minecraft " + PaperCompatibility.serverMinecraftVersion()
+                                            + " | qualified=" + PaperCompatibility.isSupportedServer(),
+                                    PaperCompatibility.isSupportedServer() ? NamedTextColor.GREEN : NamedTextColor.YELLOW
+                            ));
                             return com.mojang.brigadier.Command.SINGLE_SUCCESS;
                         })
                 ).then(Commands.literal("encryption")

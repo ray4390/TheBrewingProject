@@ -8,6 +8,7 @@ import dev.jsinco.brewery.database.Session;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import org.bukkit.World;
 
 public interface DistillerySession extends Session<DistillerySession> {
 
@@ -23,7 +24,7 @@ public interface DistillerySession extends Session<DistillerySession> {
 
     CompletableFuture<Void> removeDistillery(BukkitDistillery distillery);
 
-    CompletableFuture<List<BukkitDistillery>> findDistilleries(UUID worldUuid);
+    CompletableFuture<List<BukkitDistillery>> findDistilleries(World world);
 
     CompletableFuture<Void> updateDistillery(BukkitDistillery newDistillery);
 

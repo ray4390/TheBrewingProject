@@ -13,6 +13,7 @@ import dev.jsinco.brewery.api.structure.StructureType;
 import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.api.util.Pair;
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
+import dev.jsinco.brewery.bukkit.compat.PaperCompatibility;
 import dev.jsinco.brewery.configuration.DrunkenModifierSection;
 import dev.jsinco.brewery.util.FileUtil;
 import dev.jsinco.brewery.util.MessageUtil;
@@ -364,6 +365,10 @@ public class DebugDumpCommand {
         tbp.set("version", 1);
 
         tbp.set("tbp.pluginVersion", plugin.getPluginMeta().getVersion());
+        tbp.set("tbp.distribution", "RayCraft fork");
+        tbp.set("tbp.targetMinecraftVersion", PaperCompatibility.TARGET_MINECRAFT_VERSION);
+        tbp.set("tbp.detectedMinecraftVersion", PaperCompatibility.serverMinecraftVersion());
+        tbp.set("tbp.qualifiedServerVersion", PaperCompatibility.isSupportedServer());
         tbp.set("tbp.internalTime", plugin.getTime());
         tbp.set("tbp.recipeCount", plugin.getRecipeRegistry().getRecipes().size());
         tbp.set("tbp.activeIntegrations", plugin.getIntegrationManager().getIntegrationRegistry().getAllIntegrations().stream()

@@ -17,7 +17,6 @@ import dev.jsinco.brewery.database.PersistenceSupplier;
 import dev.jsinco.brewery.database.UncheckedPersistenceException;
 import dev.jsinco.brewery.database.sql.SqlStatements;
 import dev.jsinco.brewery.util.DecoderEncoder;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
@@ -112,7 +111,7 @@ public record SqLiteDistillerySession(Executor executor, PersistenceSupplier<Con
             } catch (SQLException e) {
                 throw new UncheckedPersistenceException(e);
             }
-        });
+        }, executor);
     }
 
     @Override
@@ -156,10 +155,10 @@ public record SqLiteDistillerySession(Executor executor, PersistenceSupplier<Con
     }
 
     @Override
-    public CompletableFuture<List<BukkitDistillery>> findDistilleries(UUID worldUuid) {
+    public CompletableFuture<List<BukkitDistillery>> findDistilleries(World world) {
+        UUID worldUuid = world.getUID();
         return fetch(() -> {
             List<BukkitDistillery> output = new ArrayList<>();
-            World world = Bukkit.getWorld(worldUuid);
             try (Connection connection = connectionSupplier.getUnchecked(); PreparedStatement preparedStatement = connection.prepareStatement(DISTILLERY_STATEMENTS.get(SqlStatements.Type.FIND))) {
                 preparedStatement.setBytes(1, DecoderEncoder.asBytes(worldUuid));
                 ResultSet resultSet = preparedStatement.executeQuery();
