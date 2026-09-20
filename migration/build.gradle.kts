@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.3.20"
     id("io.github.goooler.shadow") version "8.1.7"
-    id("de.eldoria.plugin-yml.bukkit") version "0.7.1"
+    id("de.eldoria.plugin-yml.bukkit") version "0.9.0"
 }
 
 group = "dev.jsinco.brewery"
@@ -15,10 +15,10 @@ repositories {
     maven("https://storehouse.okaeri.eu/repository/maven-public/")
 }
 
-java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(25))
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly(libs.paper.api)
 
     compileOnly(project(":bukkit-impl"))
     compileOnly(project(":core"))
@@ -41,7 +41,7 @@ tasks {
 bukkit {
     main = "dev.jsinco.brewery.migrator.TbpMigratorPlugin"
     foliaSupported = false
-    apiVersion = "1.21"
+    apiVersion = "26.2"
     authors = listOf("Thorinwasher")
     name = "TbpMigratorPlugin"
     depend = listOf("TheBrewingProject", "BreweryX")

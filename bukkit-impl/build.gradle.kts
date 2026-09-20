@@ -15,7 +15,7 @@ plugins {
     alias(libs.plugins.modrinth.publish)
 }
 
-val supportedPaperVersions = listOf("1.21.8", "1.21.9", "1.21.10", "1.21.11", "26.1.2")
+val supportedPaperVersions = listOf("26.2")
 
 
 repositories {
@@ -80,6 +80,10 @@ dependencies {
     compileOnly(libs.towny)
     compileOnly(libs.worldguard.bukkit) {
         exclude("com.google.code.gson", "gson")
+        // WorldGuard pins the Minecraft-bundled library versions from the
+        // release it targets. Paper 26.2 provides newer compatible versions.
+        exclude("com.google.guava", "guava")
+        exclude("it.unimi.dsi", "fastutil")
     }
     compileOnly(libs.quickshop.hikari)
     compileOnly(libs.mythic)
@@ -98,6 +102,8 @@ dependencies {
     testImplementation(testFixtures(project(":api")))
     testImplementation(libs.adventure.nbt)
     testImplementation(libs.mockbukkit)
+    testImplementation(libs.paper.api)
+    testImplementation(libs.joml)
     testImplementation(libs.sqlite.jdbc)
 }
 
@@ -108,7 +114,7 @@ tasks {
 
 
     runServer {
-        minecraftVersion("1.21.11")
+        minecraftVersion("26.2")
         if (project.findProperty("testing.integrations")!! == "true") {
             downloadPlugins {
                 modrinth("worldedit", "JUWRHdru")
@@ -171,7 +177,7 @@ runPaper.folia.registerTask {
 bukkit {
     main = "dev.jsinco.brewery.bukkit.TheBrewingProject"
     foliaSupported = true
-    apiVersion = "1.21"
+    apiVersion = "26.2"
     authors = listOf("Jsinco", "Mitality", "Thorinwasher", "Nadwey")
     name = rootProject.name
     defaultPermission = BukkitPluginDescription.Permission.Default.FALSE
