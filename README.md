@@ -5,6 +5,9 @@ even memory loss?**
 You're in luck! You can simply install this plugin and find out today! Experience what's listed above and much more with
 TheBrewingProject.
 
+This repository is the RayCraft-maintained fork. Its production target, build requirements, upstream workflow, and
+release checklist are documented in [docs/RAYCRAFT_FORK.md](docs/RAYCRAFT_FORK.md).
+
 Check it out on our demo server, where you can easily brew and drink, with no setup required whatsoever: [showcase.breweryteam.dev](https://mcsrvstat.us/server/showcase.breweryteam.dev)
 
 ***
@@ -139,5 +142,5 @@ public class MyItemIntegration extends ItemIntegration {
 **Build**
 
 ```
-gradlew bukkit:shadowJar
+./gradlew :bukkit-impl:shadowJar
 ```
