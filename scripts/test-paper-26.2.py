@@ -40,11 +40,11 @@ PLUGIN_READY = "Startup status: supported=true, recipes=29, structures=3"
 RELOAD_OK = "Reloaded The Brewing Project!"
 VERSION_DIAGNOSTIC = "RayCraft fork | target Minecraft 26.2 | detected Minecraft 26.2 | qualified=true"
 UPSTREAM_RESOURCE_SHA256 = {
-    "recipes.yml": "f1d095e419b36d3420549efd9378ca4f38b1f6325fe682dc2e4c2832538c1344",
-    "incomplete-recipes.yml": "766c28932865b6bbe106688ccb91d33a38f1b3af2563beff9c5bbe1d291fb4c1",
-    "barrel_types.yml": "2ac69422c31061862ddbb61908614730e7f51b912b611f05920bbc5b1e61477e",
-    "structures.yml": "02f8aaf557fca64842e0598cacb58bb5f0dd72519da79d7b7709b0b91254a905",
-    "named_drunk_events.json": "6f39effc2d3ce09182ef5fc2b89113dea3c4f8ed489663b414d7cba41e1a7ad4",
+    "recipes.yml": "885c85be28f730acf9dd99aec1df559986c852923933bc752209b2c6dc8d4482",
+    "incomplete-recipes.yml": "d0307f817d848899ae7e6d971b137a37c873f822c9541e9e7c47ddf5265ffeb0",
+    "barrel_types.yml": "e070fb54de39b30c966bf31c53bd7cef422a6d511725fb7bcaa99111034f49c8",
+    "structures.yml": "b7070c12529516c1e352267c267650504111eeea626ca70450ae1a7e0d3e83e2",
+    "named_drunk_events.json": "c0a7cf218b1336be661a259ee393ce5962effd4824fb7c0c292d44c656d0e25f",
 }
 
 FATAL_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
@@ -85,7 +85,11 @@ def download_paper(destination: pathlib.Path) -> None:
 def assert_upstream_resources(jar: pathlib.Path, server_dir: pathlib.Path | None = None) -> None:
     with zipfile.ZipFile(jar) as plugin:
         for name, expected in UPSTREAM_RESOURCE_SHA256.items():
-            actual = hashlib.sha256(plugin.read(name)).hexdigest()
+            # Git stores these fixtures with LF. A Windows checkout may hand
+            # Gradle CRLF resources, which are semantically identical and must
+            # not make the cross-platform release test disagree with Linux CI.
+            content = plugin.read(name).replace(b"\r\n", b"\n")
+            actual = hashlib.sha256(content).hexdigest()
             if actual != expected:
                 raise RuntimeError(f"Packaged {name} differs from upstream 900a3f4d: expected {expected}, got {actual}")
     if server_dir is not None:
