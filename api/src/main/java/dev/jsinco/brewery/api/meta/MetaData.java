@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 
 /**
  * A basic metadata container, and the primitive type for nested metadata containers ({@link MetaDataType#CONTAINER}).
- * Not suitable for use as a key in a hash-based collection.
  */
 @Immutable
 public final class MetaData implements MetaContainer<MetaData> {
@@ -107,6 +106,13 @@ public final class MetaData implements MetaContainer<MetaData> {
         return o instanceof MetaData metaData && areMapsEqual(meta, metaData.meta);
     }
 
+    @Override
+    public int hashCode() {
+        return meta.entrySet().stream()
+                .mapToInt(entry -> entry.getKey().hashCode() ^ deepHashCode(entry.getValue()))
+                .sum();
+    }
+
     // Version of map.equals that properly checks for array equality
     private static <K, V> boolean areMapsEqual(Map<K, V> map1, Map<K, V> map2) {
         return map1.size() == map2.size() && map1.entrySet().stream()
@@ -137,6 +143,23 @@ public final class MetaData implements MetaContainer<MetaData> {
             return areListsEqual(list1, list2);
         }
         return obj1.equals(obj2);
+    }
+
+    private static int deepHashCode(Object value) {
+        if (value instanceof byte[] array) {
+            return Arrays.hashCode(array);
+        }
+        if (value instanceof int[] array) {
+            return Arrays.hashCode(array);
+        }
+        if (value instanceof long[] array) {
+            return Arrays.hashCode(array);
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().mapToInt(MetaData::deepHashCode)
+                    .reduce(1, (hash, elementHash) -> 31 * hash + elementHash);
+        }
+        return value.hashCode();
     }
 
     @Override

@@ -1,6 +1,7 @@
 package dev.jsinco.brewery.bukkit.listener;
 
 import dev.jsinco.brewery.api.util.Logger;
+import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.breweries.BreweryRegistry;
 import dev.jsinco.brewery.bukkit.breweries.barrel.BukkitBarrel;
 import dev.jsinco.brewery.bukkit.breweries.distillery.BukkitDistillery;
@@ -37,6 +38,7 @@ public class WorldEventListener implements Listener {
         loadWorld(event.getWorld());
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onWorldUnload(WorldUnloadEvent event) {
         placedStructureRegistry.unloadWorld(event.getWorld().getUID());
     }
@@ -44,21 +46,35 @@ public class WorldEventListener implements Listener {
     private void loadWorld(World world) {
         try {
             database.startSession(SessionTypes.BARREL_SESSION_TYPE).findBarrels(world.getUID())
-                    .thenAccept(barrels -> {
+                    .thenAccept(barrels -> runWhenWorldIsLoaded(world, () -> {
                         placedStructureRegistry.registerStructures(barrels.stream().map(BukkitBarrel::getStructure).toList());
                         registry.registerInventories(barrels);
-                    }).exceptionally(Logger::logAndTrackErr);
+                    })).exceptionally(Logger::logAndTrackErr);
             database.startSession(SessionTypes.CAULDRON_SESSION_TYPE).findCauldrons(world.getUID())
-                    .thenAccept(cauldrons -> {
+                    .thenAccept(cauldrons -> runWhenWorldIsLoaded(world, () -> {
                         cauldrons.forEach(registry::addActiveSinglePositionStructure);
-                    }).exceptionally(Logger::logAndTrackErr);
+                    })).exceptionally(Logger::logAndTrackErr);
             database.startSession(SessionTypes.DISTILLERY_SESSION_TYPE).findDistilleries(world.getUID())
-                    .thenAccept(distilleries -> {
+                    .thenAccept(distilleries -> runWhenWorldIsLoaded(world, () -> {
                         placedStructureRegistry.registerStructures(distilleries.stream().map(BukkitDistillery::getStructure).toList());
                         registry.registerInventories(distilleries);
-                    }).exceptionally(Logger::logAndTrackErr);
+                    })).exceptionally(Logger::logAndTrackErr);
         } catch (PersistenceException e) {
             Logger.logErr(e);
         }
+    }
+
+    private void runWhenWorldIsLoaded(World world, Runnable runnable) {
+        TheBrewingProject plugin = TheBrewingProject.getInstance();
+        Bukkit.getGlobalRegionScheduler().run(plugin, ignored -> {
+            if (Bukkit.getWorld(world.getUID()) != world) {
+                return;
+            }
+            try {
+                runnable.run();
+            } catch (RuntimeException exception) {
+                Logger.logAndTrackErr(exception);
+            }
+        });
     }
 }

@@ -121,7 +121,11 @@ public class BreweryTranslator extends MiniMessageTranslator {
             throw new IllegalArgumentException("Locale directory is not a directory!");
         }
         ImmutableMap.Builder<Locale, Properties> translationsBuilder = new ImmutableMap.Builder<>();
-        for (File translationFile : localeDirectory.listFiles(file -> file.getName().endsWith(".lang.properties"))) {
+        File[] translationFiles = localeDirectory.listFiles(file -> file.getName().endsWith(".lang.properties"));
+        if (translationFiles == null) {
+            throw new IllegalStateException("Could not list locale directory: " + localeDirectory);
+        }
+        for (File translationFile : translationFiles) {
             try (InputStream inputStream = new FileInputStream(translationFile)) {
                 Properties translation = new Properties();
                 translation.load(new InputStreamReader(inputStream, StandardCharsets.UTF_8));

@@ -25,6 +25,7 @@ import dev.jsinco.brewery.bukkit.breweries.BreweryRegistry;
 import dev.jsinco.brewery.bukkit.breweries.barrel.BukkitBarrel;
 import dev.jsinco.brewery.bukkit.breweries.distillery.BukkitDistillery;
 import dev.jsinco.brewery.bukkit.command.BreweryCommand;
+import dev.jsinco.brewery.bukkit.compat.PaperCompatibility;
 import dev.jsinco.brewery.bukkit.configuration.serializer.BreweryLocationSerializer;
 import dev.jsinco.brewery.bukkit.configuration.serializer.ColorSerializer;
 import dev.jsinco.brewery.bukkit.configuration.serializer.IngredientInputSerializer;
@@ -125,6 +126,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -190,6 +192,7 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         saveResources();
         Migrations.migrateAllConfigFiles(this.getDataFolder());
         this.resourcePackColors = new ResourcePackColors();
+        this.resourcePackColors.addServerResourcePackSource();
         EventSection.migrateEvents(getDataFolder());
         Config.load(this.getDataFolder(), serializers());
         integrationManager.registerIntegrations(resourcePackColors);
@@ -240,8 +243,8 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
     public void reload() {
         Migrations.migrateAllConfigFiles(this.getDataFolder());
         saveResources();
-        closeDatabase();
         Config.config().load(true);
+        Config.postValidate();
         DrunkenModifierSection.modifiers().load(true);
         EventSection.events().load(true);
         DrunkenModifierSection.postValidate();
@@ -249,6 +252,11 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         IngredientsSection.ingredients().load(true);
         IngredientsSection.validate(BukkitIngredientManager.INSTANCE, BukkitIngredientUtil::tagValuesFromString);
         translator.reload();
+        // Listeners retain the database instance registered at startup. Drain
+        // open inventories and queued writes, but keep that database alive.
+        // Replacing it here previously left every listener using a terminated
+        // executor and made /tbp reload fail immediately.
+        flushOpenInventories();
         this.structureRegistry.clear();
         this.placedStructureRegistry.clear();
         this.breweryRegistry.clear();
@@ -260,26 +268,10 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         this.drunkEventExecutor.clear();
         this.customDrunkEventRegistry = EventSection.events().customEvents();
         saveResources();
-        this.database = new SqlDatabase(DatabaseDriver.SQLITE);
-        try {
-            database.init(this.getDataFolder());
-        } catch (IOException | SQLException e) {
-            throw new RuntimeException(e); // Hard exit if any issues here
-        }
         this.drunksManager.reset(EventSection.events().enabledRandomEvents().stream().map(EventData::deserialize).collect(Collectors.toSet()));
         worldEventListener.init();
         recipeRegistry.clear();
-        RecipeReader<ItemStack> recipeReader = new RecipeReader<>(this.getDataFolder(), new BukkitRecipeResultReader(), BukkitIngredientManager.INSTANCE);
-
-        List<CompletableFuture<RecipeImpl<ItemStack>>> recipeFutures = recipeReader.readRecipes();
-        CompletableFuture.allOf(recipeFutures.toArray(CompletableFuture<?>[]::new))
-                .thenRunAsync(() -> {
-                    recipeFutures.stream()
-                            .map(f -> f.getNow(null))
-                            .filter(Objects::nonNull)
-                            .forEach(recipeRegistry::registerRecipe);
-                    new AsyncRecipesLoadedEvent(recipeRegistry).callEvent();
-                });
+        loadRecipes();
         DefaultRecipeReader.readDefaultRecipes(this.getDataFolder()).forEach((string, defaultRecipe) -> defaultRecipe
                 .whenComplete((defaultRecipe1, throwable) -> {
                     if (throwable != null) {
@@ -348,22 +340,37 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
                 .map(StructureMatcher::getMatchers)
                 .flatMap(Collection::stream)
                 .toList();
-        Stream.of(structureRoot.listFiles())
-                .filter(file -> file.getName().endsWith(".json"))
-                .map(File::toPath)
-                .map(path -> ConfigManager.create(BreweryStructureConfig.class, it -> {
+        File[] structureFiles = structureRoot.listFiles(file -> file.getName().endsWith(".json"));
+        if (structureFiles == null) {
+            throw new IllegalStateException("Could not list structure directory: " + structureRoot);
+        }
+        Arrays.stream(structureFiles).forEach(file -> {
+            try {
+                BreweryStructureConfig config = ConfigManager.create(BreweryStructureConfig.class, it -> {
                     it.withConfigurer(new JsonGsonConfigurer(), pack);
-                    it.withBindFile(path);
+                    it.withBindFile(file);
                     it.withRemoveOrphans(true);
                     it.saveDefaults();
                     it.load(true);
-                }).toStructure(path, matchers))
-                .forEach(structureRegistry::addStructure);
+                });
+                structureRegistry.addStructure(config.toStructure(file.toPath(), matchers));
+            } catch (RuntimeException e) {
+                Logger.logErr("Could not load structure '" + file.getName() + "'; other structures remain available. Cause: " + e.getMessage());
+            }
+        });
     }
 
     @Override
     public void onEnable() {
         Preconditions.checkState(successfulLoad, "Plugin loading failed, see above exception in load stage");
+        Logger.log("Starting RayCraft TheBrewingProject " + getPluginMeta().getVersion()
+                + " on Minecraft " + PaperCompatibility.serverMinecraftVersion()
+                + " (Paper " + Bukkit.getVersion() + ")");
+        if (!PaperCompatibility.isSupportedServer()) {
+            Logger.logWarn("Minecraft " + PaperCompatibility.serverMinecraftVersion()
+                    + " has not been qualified by the RayCraft fork. Supported: "
+                    + PaperCompatibility.TARGET_MINECRAFT_VERSION + ". Brewing will continue, but production deployment is not recommended.");
+        }
         loadStructures();
         integrationManager.enableIntegrations();
         this.database = new SqlDatabase(DatabaseDriver.SQLITE);
@@ -405,16 +412,7 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, this::otherTicking, 1, 1);
         IngredientsSection.load(this.getDataFolder(), serializers());
         IngredientsSection.validate(BukkitIngredientManager.INSTANCE, BukkitIngredientUtil::tagValuesFromString);
-        RecipeReader<ItemStack> recipeReader = new RecipeReader<>(this.getDataFolder(), new BukkitRecipeResultReader(), BukkitIngredientManager.INSTANCE);
-
-        List<CompletableFuture<RecipeImpl<ItemStack>>> recipeFutures = recipeReader.readRecipes();
-        CompletableFuture.allOf(recipeFutures.toArray(new CompletableFuture[0]))
-                .thenRunAsync(() -> {
-                    recipeFutures.stream()
-                            .map(CompletableFuture::join)
-                            .forEach(recipeRegistry::registerRecipe);
-                    new AsyncRecipesLoadedEvent(recipeRegistry).callEvent();
-                });
+        loadRecipes();
         DefaultRecipeReader.readDefaultRecipes(this.getDataFolder()).forEach((string, defaultRecipe) -> defaultRecipe
                 .whenComplete((defaultRecipe1, throwable) -> {
                     if (throwable != null) {
@@ -442,19 +440,53 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
 
     private void closeDatabase() {
         try {
-            breweryRegistry.iterate(StructureType.BARREL, inventoryAccessible -> inventoryAccessible.close(true));
-            breweryRegistry.iterate(StructureType.DISTILLERY, inventoryAccessible -> inventoryAccessible.close(true));
+            flushOpenInventories();
         } catch (Throwable e) {
             Logger.logAndTrackErr(e);
         }
+        SqlDatabase databaseToClose = this.database;
+        if (databaseToClose == null) {
+            return;
+        }
         try {
-            database.startSession(SessionTypes.MISC_SESSION_TYPE)
+            databaseToClose.startSession(SessionTypes.MISC_SESSION_TYPE)
                     .setTime(time)
                     .exceptionally(Logger::logAndTrackErr);
-            database.flush().join();
-        } catch (PersistenceException e) {
-            Logger.logErr(e);
+            databaseToClose.close();
+        } catch (Throwable e) {
+            Logger.logAndTrackErr(e);
+        } finally {
+            this.database = null;
         }
+    }
+
+    private void flushOpenInventories() {
+        breweryRegistry.iterate(StructureType.BARREL, inventoryAccessible -> inventoryAccessible.close(true));
+        breweryRegistry.iterate(StructureType.DISTILLERY, inventoryAccessible -> inventoryAccessible.close(true));
+        if (database != null) {
+            database.flush().join();
+        }
+    }
+
+    private void loadRecipes() {
+        RecipeReader<ItemStack> recipeReader = new RecipeReader<>(this.getDataFolder(), new BukkitRecipeResultReader(), BukkitIngredientManager.INSTANCE);
+        List<CompletableFuture<RecipeImpl<ItemStack>>> recipeFutures = recipeReader.readRecipes();
+        CompletableFuture.allOf(recipeFutures.toArray(CompletableFuture<?>[]::new))
+                .thenRun(() -> {
+                    recipeFutures.stream()
+                            .map(future -> future.getNow(null))
+                            .filter(Objects::nonNull)
+                            .forEach(recipeRegistry::registerRecipe);
+                    new AsyncRecipesLoadedEvent(recipeRegistry).callEvent();
+                    String integrations = integrationManager.getIntegrationRegistry().getAllIntegrations().stream()
+                            .map(integration -> integration.getId())
+                            .sorted()
+                            .collect(Collectors.joining(", "));
+                    Logger.log("Startup status: supported=" + PaperCompatibility.isSupportedServer()
+                            + ", recipes=" + recipeRegistry.getRecipes().size()
+                            + ", structures=" + structureRegistry.size()
+                            + ", integrations=" + (integrations.isEmpty() ? "none" : integrations));
+                });
     }
 
     private void saveResources() {

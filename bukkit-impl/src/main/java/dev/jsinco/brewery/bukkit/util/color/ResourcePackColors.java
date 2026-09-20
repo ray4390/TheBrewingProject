@@ -36,20 +36,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @NullMarked
 public class ResourcePackColors {
 
     private final Map<Key, Color> itemModelColors = new ConcurrentHashMap<>();
     private final Map<Key, Map<Float, Color>> customModelDataColors = new ConcurrentHashMap<>();
-    private final List<ResourcePackSource> sources = new ArrayList<>();
+    private final List<ResourcePackSource> sources = new CopyOnWriteArrayList<>();
 
     public void init() {
         List<ResourcePack> resourcePacks;
         try {
             resourcePacks = readResourcePacks();
-        } catch (IOException | InterruptedException e) {
-            Logger.logAndTrackErr(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Logger.logWarn("Resource-pack color loading was interrupted; brewing will continue with configured/default colors.");
+            return;
+        } catch (Exception e) {
+            Logger.logWarn("Could not inspect the server resource pack; brewing will continue with configured/default colors. Cause: " + e.getMessage());
             return;
         }
         if (resourcePacks.isEmpty()) {
@@ -96,11 +101,7 @@ public class ResourcePackColors {
 
     private List<ResourcePack> readResourcePacks() throws IOException, InterruptedException {
         if (sources.isEmpty()) {
-            org.bukkit.packs.ResourcePack bukkitPack = Bukkit.getServerResourcePack();
-            if (bukkitPack == null) {
-                return List.of();
-            }
-            sources.add(new ResourcePackSource.HttpResourcePackSource(bukkitPack.getUrl(), false, null));
+            return List.of();
         }
         List<ResourcePack> output = new ArrayList<>();
         for (ResourcePackSource source : List.copyOf(sources)) {
@@ -111,6 +112,23 @@ public class ResourcePackColors {
             }
         }
         return output;
+    }
+
+    /**
+     * Captures Paper's configured pack on the server thread. Downloading and
+     * parsing can then safely happen on the async scheduler in {@link #init()}.
+     */
+    public void addServerResourcePackSource() {
+        try {
+            org.bukkit.packs.ResourcePack bukkitPack = Bukkit.getServerResourcePack();
+            if (bukkitPack == null) {
+                return;
+            }
+            sources.add(new ResourcePackSource.HttpResourcePackSource(bukkitPack.getUrl(), false, null));
+        } catch (RuntimeException exception) {
+            Logger.logWarn("Could not inspect Paper's configured resource pack; configured/default brew colors will be used. Cause: "
+                    + exception.getMessage());
+        }
     }
 
     private @Nullable BufferedImage readItemModel(@Nullable ItemModel itemModel, ResourceResolver resolver) {

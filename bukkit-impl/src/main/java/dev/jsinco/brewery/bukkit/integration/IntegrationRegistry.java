@@ -46,6 +46,11 @@ public class IntegrationRegistry {
     }
 
     @ApiStatus.Internal
+    public void unregister(Integration integration) {
+        integrations.values().forEach(set -> set.remove(integration));
+    }
+
+    @ApiStatus.Internal
     public void clear() {
         integrations.clear();
     }

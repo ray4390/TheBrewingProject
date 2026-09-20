@@ -63,18 +63,16 @@ public class DrunksManagerImpl<C> implements DrunksManager {
         this.timeSupplier = timeSupplier;
         this.eventSupplier = eventSupplier;
         this.sessionSupplier = sessionSupplier;
-        loadDrunkStates();
+        loadDrunkStates().join();
     }
 
-    private void loadDrunkStates() {
+    private CompletableFuture<Void> loadDrunkStates() {
         try {
             DrunkenStateSession session = sessionSupplier.get();
-            session.retrieveAllStates()
-                    .thenAccept(states ->
-                            states.forEach(state -> drunks.put(state.playerUuid(), state.state()))
-                    ).exceptionally(Logger::logAndTrackErr);
+            return session.retrieveAllStates()
+                    .thenAccept(states -> states.forEach(state -> drunks.put(state.playerUuid(), state.state())));
         } catch (PersistenceException e) {
-            Logger.logErr(e);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -178,17 +176,17 @@ public class DrunksManagerImpl<C> implements DrunksManager {
                 .map(Pair::first)
                 .collect(Collectors.toSet());
         Map<DrunkenModifier, Double> newModifiers = newState.modifiers();
-        future.thenAcceptAsync(ignored -> {
+        future.thenCompose(ignored -> {
+            List<CompletableFuture<Void>> modifierWrites = new ArrayList<>();
             for (DrunkenModifier modifier : allModifiers) {
                 if (newModifiers.get(modifier) != modifier.minValue()) {
-                    session.insertModifier(modifier, newModifiers.get(modifier), playerUuid)
-                            .exceptionally(Logger::logAndTrackErr);
+                    modifierWrites.add(session.insertModifier(modifier, newModifiers.get(modifier), playerUuid));
                 }
                 if (newModifiers.get(modifier) == modifier.minValue()) {
-                    session.removeModifier(modifier, playerUuid)
-                            .exceptionally(Logger::logAndTrackErr);
+                    modifierWrites.add(session.removeModifier(modifier, playerUuid));
                 }
             }
+            return CompletableFuture.allOf(modifierWrites.toArray(CompletableFuture<?>[]::new));
         }).exceptionally(Logger::logAndTrackErr);
     }
 
@@ -198,7 +196,7 @@ public class DrunksManagerImpl<C> implements DrunksManager {
         drunks.clear();
         this.allowedEvents = allowedEvents;
         events.clear();
-        loadDrunkStates();
+        loadDrunkStates().join();
         drunks.keySet().forEach(this::planEvent);
         namedDrunkEvents = initializeDrunkEventsWithOverrides();
     }
@@ -280,7 +278,10 @@ public class DrunksManagerImpl<C> implements DrunksManager {
             if (plannedEvents.get(playerUuid) < time) {
                 return;
             }
-            events.get(plannedEvents.get(playerUuid)).remove(playerUuid);
+            Map<UUID, DrunkEvent> previouslyPlanned = events.get(plannedEvents.get(playerUuid));
+            if (previouslyPlanned != null) {
+                previouslyPlanned.remove(playerUuid);
+            }
         }
         events.computeIfAbsent(time, ignored -> new HashMap<>()).put(playerUuid, drunkEvent);
         plannedEvents.put(playerUuid, time);
@@ -288,7 +289,11 @@ public class DrunksManagerImpl<C> implements DrunksManager {
 
     @Override
     public void registerPassedOut(@NonNull UUID playerUuid) {
-        drunks.computeIfPresent(playerUuid, (ignored, drunkState) -> drunkState.withPassOut(timeSupplier.getAsLong()));
+        drunks.computeIfPresent(playerUuid, (ignored, drunkState) -> {
+            DrunkState updated = drunkState.withPassOut(timeSupplier.getAsLong());
+            updateState(playerUuid, true, updated, drunkState);
+            return updated;
+        });
     }
 
     @Override
@@ -310,7 +315,12 @@ public class DrunksManagerImpl<C> implements DrunksManager {
         if (time == null) {
             return null;
         }
-        return new Pair<>(events.get(time).get(playerUUID), time);
+        Map<UUID, DrunkEvent> plannedAtTime = events.get(time);
+        if (plannedAtTime == null || !plannedAtTime.containsKey(playerUUID)) {
+            plannedEvents.remove(playerUUID, time);
+            return null;
+        }
+        return new Pair<>(plannedAtTime.get(playerUUID), time);
     }
 
     public LongSupplier getTimeSupplier() {

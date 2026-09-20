@@ -60,13 +60,13 @@ public class IntegrationManagerImpl implements IntegrationManager {
     }
 
     public void loadIntegrations() {
-        integrationRegistry.getAllIntegrations()
-                .forEach(Integration::onLoad);
+        Set.copyOf(integrationRegistry.getAllIntegrations())
+                .forEach(integration -> invokeLifecycle(integration, "load", integration::onLoad));
     }
 
     public void enableIntegrations() {
-        integrationRegistry.getAllIntegrations()
-                .forEach(Integration::onEnable);
+        Set.copyOf(integrationRegistry.getAllIntegrations())
+                .forEach(integration -> invokeLifecycle(integration, "enable", integration::onEnable));
     }
 
     @Override
@@ -96,7 +96,22 @@ public class IntegrationManagerImpl implements IntegrationManager {
         if (!ClassUtil.exists(classNamePredicate)) {
             return;
         }
-        register(type, tSupplier.get());
+        try {
+            register(type, tSupplier.get());
+        } catch (LinkageError | RuntimeException e) {
+            Logger.logWarn("Optional integration for '" + classNamePredicate
+                    + "' is present but incompatible and will be disabled. Cause: " + e.getMessage());
+        }
+    }
+
+    private void invokeLifecycle(Integration integration, String phase, Runnable action) {
+        try {
+            action.run();
+        } catch (LinkageError | RuntimeException e) {
+            integrationRegistry.unregister(integration);
+            Logger.logWarn("Optional integration '" + integration.getId() + "' failed during " + phase
+                    + " and has been disabled. Core brewing remains available. Cause: " + e.getMessage());
+        }
     }
 
     public void clear() {

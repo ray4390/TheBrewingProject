@@ -157,8 +157,7 @@ public record SqLiteDistillerySession(Executor executor, PersistenceSupplier<Con
 
     @Override
     public CompletableFuture<List<BukkitDistillery>> findDistilleries(UUID worldUuid) {
-        CompletableFuture<List<BukkitDistillery>> distilleriesFuture = new CompletableFuture<>();
-        fetch(() -> {
+        return fetch(() -> {
             List<BukkitDistillery> output = new ArrayList<>();
             World world = Bukkit.getWorld(worldUuid);
             try (Connection connection = connectionSupplier.getUnchecked(); PreparedStatement preparedStatement = connection.prepareStatement(DISTILLERY_STATEMENTS.get(SqlStatements.Type.FIND))) {
@@ -186,10 +185,7 @@ public record SqLiteDistillerySession(Executor executor, PersistenceSupplier<Con
                 throw new PersistenceException(e);
             }
             return output;
-        }).thenAccept(distilleries ->
-                insertBrews(distilleries).thenRun(() -> distilleriesFuture.complete(distilleries))
-        );
-        return distilleriesFuture;
+        }).thenCompose(distilleries -> insertBrews(distilleries).thenApply(ignored -> distilleries));
     }
 
     private CompletableFuture<Void> insertBrews(List<BukkitDistillery> distilleries) {

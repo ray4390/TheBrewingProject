@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class SqlDatabase implements PersistenceHandler {
+public class SqlDatabase implements PersistenceHandler, AutoCloseable {
 
     private static final int BREWERY_DATABASE_VERSION = 3;
     private final DatabaseDriver driver;
@@ -64,43 +64,54 @@ public class SqlDatabase implements PersistenceHandler {
     }
 
     private void createTables(Connection connection) throws SQLException {
-        for (String statement : FileUtil.readInternalResource("/database/" + driver.name().toLowerCase(Locale.ROOT) + "/create_all_tables.sql").split(";")) {
-            connection.prepareStatement(statement + ";").execute();
-        }
+        boolean previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            executeStatements(connection, FileUtil.readInternalResource(
+                    "/database/" + driver.name().toLowerCase(Locale.ROOT) + "/create_all_tables.sql"));
 
-        ResultSet resultSet = connection.prepareStatement(FileUtil.readInternalResource("/database/generic/get_version.sql")).executeQuery();
-        if (resultSet.next()) {
-            int previousVersion = resultSet.getInt("version");
-            resultSet.close();
-            if (previousVersion < BREWERY_DATABASE_VERSION) {
-                for (int i = previousVersion; i < BREWERY_DATABASE_VERSION; i++) {
-                    runMigration(i, connection);
+            try (PreparedStatement versionQuery = connection.prepareStatement(
+                    FileUtil.readInternalResource("/database/generic/get_version.sql"));
+                 ResultSet resultSet = versionQuery.executeQuery()) {
+                if (resultSet.next()) {
+                    int previousVersion = resultSet.getInt("version");
+                    if (previousVersion < BREWERY_DATABASE_VERSION) {
+                        for (int i = previousVersion; i < BREWERY_DATABASE_VERSION; i++) {
+                            runMigration(i, connection);
+                        }
+                    } else if (previousVersion > BREWERY_DATABASE_VERSION) {
+                        throw new IllegalStateException("Can not downgrade The Brewing Project!");
+                    }
                 }
-            } else if (previousVersion > BREWERY_DATABASE_VERSION) {
-                throw new IllegalStateException("Can not downgrade The Brewing Project!");
             }
+            try (PreparedStatement preparedStatement = connection.prepareStatement(
+                    FileUtil.readInternalResource("/database/generic/set_version.sql"))) {
+                preparedStatement.setInt(1, BREWERY_DATABASE_VERSION);
+                preparedStatement.execute();
+            }
+            connection.commit();
+        } catch (SQLException | RuntimeException exception) {
+            try {
+                connection.rollback();
+            } catch (SQLException rollbackException) {
+                exception.addSuppressed(rollbackException);
+            }
+            throw exception;
+        } finally {
+            connection.setAutoCommit(previousAutoCommit);
         }
-        PreparedStatement preparedStatement = connection.prepareStatement(FileUtil.readInternalResource("/database/generic/set_version.sql"));
-        preparedStatement.setInt(1, BREWERY_DATABASE_VERSION);
-        preparedStatement.execute();
     }
 
     private void runMigration(int version, Connection connection) throws SQLException {
         switch (version) {
             case 0 -> {
-                for (String statement : FileUtil.readInternalResource("/database/migration/version_migration.sql").split(";")) {
-                    connection.prepareStatement(statement + ";").execute();
-                }
+                executeStatements(connection, FileUtil.readInternalResource("/database/migration/version_migration.sql"));
             }
             case 1 -> {
-                for (String statement : FileUtil.readInternalResource("/database/migration/foreign_keys_on_migration.sql").split(";")) {
-                    connection.prepareStatement(statement + ";").execute();
-                }
+                executeStatements(connection, FileUtil.readInternalResource("/database/migration/foreign_keys_on_migration.sql"));
             }
             case 2 -> {
-                for (String statement : FileUtil.readInternalResource("/database/migration/add_cauldron_type_migration.sql").split(";")) {
-                    connection.prepareStatement(statement + ";").execute();
-                }
+                executeStatements(connection, FileUtil.readInternalResource("/database/migration/add_cauldron_type_migration.sql"));
             }
             default -> throw new IllegalStateException("Unimplemented migration from version: " + version);
         }
@@ -121,5 +132,32 @@ public class SqlDatabase implements PersistenceHandler {
     @Override
     public DatabaseDriver driver() {
         return driver;
+    }
+
+    /**
+     * Drains queued writes before closing the connection pool and its worker.
+     * This is intentionally idempotent so partial plugin startups can shut down
+     * without masking the original failure.
+     */
+    @Override
+    public synchronized void close() {
+        if (!executor.isShutdown()) {
+            flush().join();
+            executor.shutdown();
+        }
+        if (hikariDataSource != null && !hikariDataSource.isClosed()) {
+            hikariDataSource.close();
+        }
+    }
+
+    private static void executeStatements(Connection connection, String sql) throws SQLException {
+        for (String statement : sql.split(";")) {
+            if (statement.isBlank()) {
+                continue;
+            }
+            try (PreparedStatement preparedStatement = connection.prepareStatement(statement + ";")) {
+                preparedStatement.execute();
+            }
+        }
     }
 }

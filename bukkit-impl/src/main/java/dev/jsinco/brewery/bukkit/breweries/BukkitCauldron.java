@@ -13,6 +13,7 @@ import dev.jsinco.brewery.api.recipe.RecipeMatcherResult;
 import dev.jsinco.brewery.api.recipe.RecipeResult;
 import dev.jsinco.brewery.api.util.BreweryRegistry;
 import dev.jsinco.brewery.api.util.CancelState;
+import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.api.vector.BreweryLocation;
 import dev.jsinco.brewery.brew.BrewImpl;
 import dev.jsinco.brewery.brew.CookStepImpl;
@@ -113,6 +114,11 @@ public class BukkitCauldron implements Cauldron {
     @Override
     public void tick() {
         BukkitAdapter.scheduleIfLoaded(location, TheBrewingProject.getInstance(), bukkitLocation -> {
+            // Preserve malformed/legacy rows for recovery, but do not let an
+            // empty persisted brew crash the repeating structure task.
+            if (brew.getSteps().isEmpty()) {
+                return;
+            }
             if (!Tag.CAULDRONS.isTagged(bukkitLocation.getBlock().getType()) || getBlock().getType() == Material.CAULDRON) {
                 ListenerUtil.removeActiveSinglePositionStructure(this);
                 return;
@@ -646,8 +652,13 @@ public class BukkitCauldron implements Cauldron {
     public CompletableFuture<Void> runLocally(Runnable action) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         Bukkit.getRegionScheduler().run(TheBrewingProject.getInstance(), BukkitAdapter.toLocation(location).orElseThrow(), ignored -> {
-            action.run();
-            completableFuture.complete(null);
+            try {
+                action.run();
+                completableFuture.complete(null);
+            } catch (Throwable throwable) {
+                Logger.logAndTrackErr(throwable);
+                completableFuture.completeExceptionally(throwable);
+            }
         });
         return completableFuture;
     }

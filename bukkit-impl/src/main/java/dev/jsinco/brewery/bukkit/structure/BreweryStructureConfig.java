@@ -31,9 +31,11 @@ public class BreweryStructureConfig extends OkaeriConfig {
         Preconditions.checkArgument(matcherName != null,
                 "Missing key 'block_matcher' in structure meta: " + configFilePath.getFileName()
         );
-        return new BreweryStructure(schematic, schemName, meta, schemName, matchers.stream()
+        List<StructureMatcher> selectedMatchers = matchers.stream()
                 .filter(matcher -> matcherName.equalsIgnoreCase(matcher.getName()))
-                .toList()
-        );
+                .toList();
+        Preconditions.checkArgument(!selectedMatchers.isEmpty(),
+                "Unknown block matcher '%s' for structure: %s", matcherName, configFilePath.getFileName());
+        return new BreweryStructure(schematic, schemName, meta, schemName, selectedMatchers);
     }
 }

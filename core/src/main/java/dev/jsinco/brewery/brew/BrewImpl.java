@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedSet;
 import java.util.Set;
@@ -272,7 +273,12 @@ public class BrewImpl implements Brew {
             return false;
         }
         BrewImpl brew = (BrewImpl) other;
-        return steps.equals(brew.steps);
+        return steps.equals(brew.steps) && meta.equals(brew.meta);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(steps, meta);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package dev.jsinco.brewery.configuration;
 
+import com.google.common.base.Preconditions;
 import dev.jsinco.brewery.api.config.Configuration;
 import dev.jsinco.brewery.api.util.LoggingModule;
 import dev.jsinco.brewery.configuration.structure.BarrelSection;
@@ -134,6 +135,18 @@ public class Config extends OkaeriConfig implements Configuration {
             it.saveDefaults();
             it.load(true);
         });
+        postValidate();
+    }
+
+    public static void postValidate() {
+        Preconditions.checkState(instance != null, "Configuration has not been loaded");
+        Preconditions.checkArgument(instance.cauldrons().cookingMinuteTicks() > 0,
+                "cauldrons.cooking-minute-ticks must be greater than zero");
+        Preconditions.checkArgument(instance.barrels().agingYearTicks() > 0,
+                "barrels.aging-year-ticks must be greater than zero");
+        Preconditions.checkArgument(instance.cauldrons().waterColorOpacity() >= 0
+                        && instance.cauldrons().waterColorOpacity() <= 255,
+                "cauldrons.water-color-opacity must be between 0 and 255");
     }
 
     public static Config config() {

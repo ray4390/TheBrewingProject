@@ -27,16 +27,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class RecipeReader<I> {
 
     private final File folder;
     private final RecipeResultReader<I> recipeResultReader;
     private final IngredientManager<I> ingredientManager;
-
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     public RecipeReader(File folder, RecipeResultReader<I> recipeResultReader, IngredientManager<I> ingredientManager) {
         this.folder = folder;
@@ -57,14 +53,14 @@ public class RecipeReader<I> {
         ConfigurationSection recipesSection = recipesFile.getConfigurationSection("recipes");
         return recipesSection.getKeys(false)
                 .stream()
-                .map(key -> getRecipe(recipesSection.getConfigurationSection(key), key).handleAsync((recipe, exception) -> {
+                .map(key -> getRecipe(recipesSection.getConfigurationSection(key), key).handle((recipe, exception) -> {
                             if (exception != null) {
                                 Logger.logErr("Exception when reading recipe: " + key);
                                 Logger.logErr(exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage());
                                 return null;
                             }
                             return recipe;
-                        }, executor) // Single thread executor to make reading stacktraces possible
+                        })
                 )
                 .toList();
     }

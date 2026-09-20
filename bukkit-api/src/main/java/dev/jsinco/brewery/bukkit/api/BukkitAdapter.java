@@ -2,6 +2,7 @@ package dev.jsinco.brewery.bukkit.api;
 
 import dev.jsinco.brewery.api.util.BreweryKey;
 import dev.jsinco.brewery.api.util.Holder;
+import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.api.vector.BreweryLocation;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -41,10 +42,15 @@ public class BukkitAdapter {
         }
         CompletableFuture<Void> output = new CompletableFuture<>();
         Bukkit.getRegionScheduler().run(owner, locationOptional.get(), ignored -> {
-            if (locationOptional.get().isChunkLoaded()) {
-                locationConsumer.accept(locationOptional.get());
+            try {
+                if (locationOptional.get().isChunkLoaded()) {
+                    locationConsumer.accept(locationOptional.get());
+                }
+                output.complete(null);
+            } catch (Throwable throwable) {
+                Logger.logAndTrackErr(throwable);
+                output.completeExceptionally(throwable);
             }
-            output.complete(null);
         });
         return output;
     }

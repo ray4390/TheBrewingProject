@@ -83,7 +83,10 @@ public class BreweryStructure {
         Map<Location, BlockData> expectedBlocks = getExpectedBlocks(transformation, structureWorldOrigin);
         for (Map.Entry<Location, BlockData> expected : expectedBlocks.entrySet()) {
             World world = expected.getKey().getWorld();
-            if (!world.getWorldBorder().isInside(expected.getKey()) || world.getMinHeight() > expected.getKey().getBlockY() || world.getMaxHeight() <= expected.getKey().getBlockY()) {
+            if (!expected.getKey().isChunkLoaded()
+                    || !world.getWorldBorder().isInside(expected.getKey())
+                    || world.getMinHeight() > expected.getKey().getBlockY()
+                    || world.getMaxHeight() <= expected.getKey().getBlockY()) {
                 return false;
             }
             if (!blockDataMatcher.matches(expected.getValue(), expected.getKey().getBlock().getBlockData())) {

@@ -12,6 +12,7 @@ import dev.jsinco.brewery.api.moment.Moment;
 import dev.jsinco.brewery.api.util.CancelState;
 import dev.jsinco.brewery.api.util.Holder;
 import dev.jsinco.brewery.api.util.HolderProviderHolder;
+import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.api.util.Pair;
 import dev.jsinco.brewery.api.vector.BreweryLocation;
 import dev.jsinco.brewery.brew.AgeStepImpl;
@@ -305,8 +306,13 @@ public class BukkitBarrel implements Barrel<BukkitBarrel, ItemStack, Inventory>,
     public CompletableFuture<Void> runLocally(Runnable action) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         Bukkit.getRegionScheduler().run(TheBrewingProject.getInstance(), getUniqueLocation(), ignored -> {
-            action.run();
-            completableFuture.complete(null);
+            try {
+                action.run();
+                completableFuture.complete(null);
+            } catch (Throwable throwable) {
+                Logger.logAndTrackErr(throwable);
+                completableFuture.completeExceptionally(throwable);
+            }
         });
         return completableFuture;
     }

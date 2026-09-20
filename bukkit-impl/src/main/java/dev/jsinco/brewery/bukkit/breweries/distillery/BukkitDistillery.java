@@ -471,8 +471,13 @@ public class BukkitDistillery implements Distillery<BukkitDistillery, ItemStack,
     public CompletableFuture<Void> runLocally(Runnable action) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         Bukkit.getRegionScheduler().run(TheBrewingProject.getInstance(), structure.getWorldOrigin(), ignored -> {
-            action.run();
-            completableFuture.complete(null);
+            try {
+                action.run();
+                completableFuture.complete(null);
+            } catch (Throwable throwable) {
+                Logger.logAndTrackErr(throwable);
+                completableFuture.completeExceptionally(throwable);
+            }
         });
         return completableFuture;
     }

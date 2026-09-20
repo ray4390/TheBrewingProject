@@ -43,14 +43,14 @@ public class PlacedStructureRegistryImpl implements PlacedStructureRegistry {
     }
 
     @Override
-    public Optional<MultiblockStructure<?>> getStructure(BreweryLocation location) {
+    public synchronized Optional<MultiblockStructure<?>> getStructure(BreweryLocation location) {
         UUID worldUuid = location.worldUuid();
         Map<BreweryVector, MultiblockStructure<?>> placedBreweryStructureMap = structures.getOrDefault(worldUuid, new HashMap<>());
         return Optional.ofNullable(placedBreweryStructureMap.get(location.toVector()));
     }
 
     @Override
-    public Set<MultiblockStructure<?>> getStructures(Collection<BreweryLocation> locations) {
+    public synchronized Set<MultiblockStructure<?>> getStructures(Collection<BreweryLocation> locations) {
         Set<MultiblockStructure<?>> breweryStructures = new HashSet<>();
         for (BreweryLocation location : locations) {
             getStructure(location).ifPresent(breweryStructures::add);
@@ -66,12 +66,12 @@ public class PlacedStructureRegistryImpl implements PlacedStructureRegistry {
         return typedMultiBlockStructureMap.get(structureType).size();
     }
 
-    public Set<MultiblockStructure<?>> getStructures(StructureType<?> structureType) {
-        return typedMultiBlockStructureMap.computeIfAbsent(structureType, ignored -> new HashSet<>());
+    public synchronized Set<MultiblockStructure<?>> getStructures(StructureType<?> structureType) {
+        return Set.copyOf(typedMultiBlockStructureMap.getOrDefault(structureType, Set.of()));
     }
 
     @Override
-    public Optional<StructureHolder<?>> getHolder(BreweryLocation location) {
+    public synchronized Optional<StructureHolder<?>> getHolder(BreweryLocation location) {
         UUID worldUuid = location.worldUuid();
         Map<BreweryVector, MultiblockStructure<? extends StructureHolder<?>>> placedBreweryStructureMap = structures.getOrDefault(worldUuid, new HashMap<>());
         return Optional.ofNullable(placedBreweryStructureMap.get(location.toVector()))
@@ -79,7 +79,7 @@ public class PlacedStructureRegistryImpl implements PlacedStructureRegistry {
     }
 
     @Override
-    public void unloadWorld(UUID worldUuid) {
+    public synchronized void unloadWorld(UUID worldUuid) {
         Map<BreweryVector, MultiblockStructure<? extends StructureHolder<?>>> removed = structures.remove(worldUuid);
         if (removed == null) {
             return;
@@ -90,7 +90,8 @@ public class PlacedStructureRegistryImpl implements PlacedStructureRegistry {
     }
 
     @Override
-    public void clear() {
+    public synchronized void clear() {
         structures.clear();
+        typedMultiBlockStructureMap.clear();
     }
 }

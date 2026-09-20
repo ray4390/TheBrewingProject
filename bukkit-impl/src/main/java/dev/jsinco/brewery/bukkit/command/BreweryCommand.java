@@ -11,6 +11,7 @@ import dev.jsinco.brewery.bukkit.command.argument.OfflinePlayerSelectorArgumentR
 import dev.jsinco.brewery.bukkit.util.BukkitMessageUtil;
 import dev.jsinco.brewery.configuration.Config;
 import dev.jsinco.brewery.api.event.DrunkEvent;
+import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.util.MessageUtil;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -18,6 +19,8 @@ import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
 import io.papermc.paper.plugin.lifecycle.event.registrar.ReloadableRegistrarEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -55,9 +58,18 @@ public class BreweryCommand {
                 .then(Commands.literal("reload")
                         .executes(context -> {
                             CommandSender sender = context.getSource().getSender();
-                            MessageUtil.message(sender, "tbp.command.reload-message");
-                            TheBrewingProject.getInstance().reload();
-                            return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                            try {
+                                TheBrewingProject.getInstance().reload();
+                                MessageUtil.message(sender, "tbp.command.reload-message");
+                                return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                            } catch (RuntimeException exception) {
+                                Logger.logAndTrackErr(exception);
+                                sender.sendMessage(Component.text(
+                                        "TheBrewingProject reload failed; check the console. Existing persistence was kept when validation failed.",
+                                        NamedTextColor.RED
+                                ));
+                                return 0;
+                            }
                         })
                         .requires(commandSourceStack -> commandSourceStack.getSender().hasPermission("brewery.command.reload"))
                 )

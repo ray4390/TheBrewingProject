@@ -6,6 +6,7 @@ import dev.jsinco.brewery.api.meta.MetaData;
 import dev.jsinco.brewery.api.recipe.DefaultRecipe;
 import dev.jsinco.brewery.api.recipe.Recipe;
 import dev.jsinco.brewery.api.util.BreweryKey;
+import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.brew.BrewImpl;
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.meta.MetaDataPdcType;
@@ -69,22 +70,28 @@ public class BrewAdapterAccess {
     }
 
     public static Optional<Brew> fromItem(ItemStack itemStack) {
-        PersistentDataContainerView data = itemStack.getPersistentDataContainer();
-        Integer dataVersion = data.get(BREWERY_DATA_VERSION, PersistentDataType.INTEGER);
-        if (!Objects.equals(dataVersion, DATA_VERSION)) {
+        try {
+            PersistentDataContainerView data = itemStack.getPersistentDataContainer();
+            Integer dataVersion = data.get(BREWERY_DATA_VERSION, PersistentDataType.INTEGER);
+            if (!Objects.equals(dataVersion, DATA_VERSION)) {
+                return Optional.empty();
+            }
+            List<BrewingStep> steps = data.has(BREWERY_CIPHERED, PersistentDataType.BOOLEAN)
+                    ? data.get(BREWING_STEPS, ListPersistentDataType.BREWING_STEP_CIPHERED_LIST)
+                    : data.get(BREWING_STEPS, ListPersistentDataType.BREWING_STEP_LIST);
+            if (steps == null) {
+                return Optional.empty();
+            }
+            MetaData meta = data.get(BREWERY_META, MetaDataPdcType.INSTANCE);
+            if (meta == null) {
+                meta = new MetaData();
+            }
+            return Optional.of(new BrewImpl(steps, meta));
+        } catch (RuntimeException exception) {
+            Logger.logWarn("Could not decode brew item data; the item was left unchanged. Cause: "
+                    + exception.getMessage());
             return Optional.empty();
         }
-        List<BrewingStep> steps = data.has(BREWERY_CIPHERED, PersistentDataType.BOOLEAN)
-                ? data.get(BREWING_STEPS, ListPersistentDataType.BREWING_STEP_CIPHERED_LIST)
-                : data.get(BREWING_STEPS, ListPersistentDataType.BREWING_STEP_LIST);
-        if (steps == null) {
-            return Optional.empty();
-        }
-        MetaData meta = data.get(BREWERY_META, MetaDataPdcType.INSTANCE);
-        if (meta == null) {
-            meta = new MetaData();
-        }
-        return Optional.of(new BrewImpl(steps, meta));
     }
 
     public static Optional<DefaultRecipe<ItemStack>> getDefaultRecipe(@Nullable Recipe<ItemStack> recipe, RecipeRegistryImpl<ItemStack> recipeRegistry, Brew brew, boolean ruined) {

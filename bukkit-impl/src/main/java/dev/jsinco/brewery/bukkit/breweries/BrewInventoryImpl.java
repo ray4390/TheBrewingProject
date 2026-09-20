@@ -17,19 +17,25 @@ import java.util.Objects;
 
 public class BrewInventoryImpl implements InventoryHolder, BrewInventory {
 
-    private final Inventory inventory;
+    private final Component title;
+    private volatile Inventory inventory;
     private final Brew[] brews;
     private final BrewPersistenceHandler store;
 
     public BrewInventoryImpl(Component title, int size, BrewPersistenceHandler store) {
-        this.inventory = Bukkit.createInventory(this, size, title);
+        this.title = title;
         this.brews = new Brew[size];
         this.store = store;
     }
 
     @NonNull
     @Override
-    public Inventory getInventory() {
+    public synchronized Inventory getInventory() {
+        if (inventory == null) {
+            // Persisted structures are decoded on the database worker. Delay
+            // the Bukkit object until a server-thread registration or access.
+            inventory = Bukkit.createInventory(this, brews.length, title);
+        }
         return inventory;
     }
 
@@ -40,6 +46,7 @@ public class BrewInventoryImpl implements InventoryHolder, BrewInventory {
 
     @Override
     public void updateInventoryFromBrews() {
+        Inventory inventory = getInventory();
         for (int i = 0; i < brews.length; i++) {
             Brew brew = brews[i];
             if (brew == null) {
@@ -52,6 +59,7 @@ public class BrewInventoryImpl implements InventoryHolder, BrewInventory {
 
     @Override
     public boolean updateBrewsFromInventory() {
+        Inventory inventory = getInventory();
         boolean hasUpdated = false;
         for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack itemStack = inventory.getItem(i);
@@ -107,8 +115,9 @@ public class BrewInventoryImpl implements InventoryHolder, BrewInventory {
     }
 
     public List<Brew> destroy() {
+        Inventory inventory = getInventory();
         List.copyOf(inventory.getViewers()).forEach(HumanEntity::closeInventory);
-        this.inventory.clear();
+        inventory.clear();
         return getBrewSnapshot();
     }
 

@@ -73,9 +73,16 @@ public class StructureMetaSerializer implements ObjectSerializer<BreweryStructur
             meta.put(structureMeta, structureMeta.defaultValue());
         });
         if (type == StructureType.DISTILLERY) {
+            Preconditions.checkArgument((Long) meta.get(StructureMeta.PROCESS_TIME) > 0,
+                    "Distillery process_time must be greater than zero");
+            Preconditions.checkArgument((Integer) meta.get(StructureMeta.PROCESS_AMOUNT) > 0,
+                    "Distillery process_amount must be greater than zero");
             Preconditions.checkArgument(meta.containsKey(StructureMeta.MIXTURE_MATERIAL_TAG) || meta.containsKey(StructureMeta.MIXTURE_ACCESS_POINTS), "Missing meta 'mixture_material_tag' or 'mixture_access_points'!");
             Preconditions.checkArgument(meta.containsKey(StructureMeta.DISTILLATE_MATERIAL_TAG) || meta.containsKey(StructureMeta.DISTILLATE_ACCESS_POINTS), "Missing meta 'distillate_material_tag' or 'distillate_access_points'");
         }
+        int inventorySize = (Integer) meta.get(StructureMeta.INVENTORY_SIZE);
+        Preconditions.checkArgument(inventorySize >= 9 && inventorySize <= 54 && inventorySize % 9 == 0,
+                "inventory_size must be a multiple of 9 between 9 and 54");
         return new BreweryStructure.Meta(meta);
     }
 }

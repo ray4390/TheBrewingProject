@@ -49,4 +49,8 @@ public class StructureRegistry {
         structureNames.clear();
         structuresWithMaterials.clear();
     }
+
+    public int size() {
+        return structureNames.size();
+    }
 }

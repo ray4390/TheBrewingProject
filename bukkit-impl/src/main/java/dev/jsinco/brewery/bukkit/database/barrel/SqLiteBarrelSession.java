@@ -21,7 +21,6 @@ import dev.jsinco.brewery.database.PersistenceSupplier;
 import dev.jsinco.brewery.database.UncheckedPersistenceException;
 import dev.jsinco.brewery.database.sql.SqlStatements;
 import dev.jsinco.brewery.util.DecoderEncoder;
-import dev.jsinco.brewery.util.FutureUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
@@ -129,8 +128,7 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
         Location origin = placedStructure.getWorldOrigin();
         UUID worldUuid = barrel.getWorld().getUID();
         Location signLocation = barrel.getUniqueLocation();
-        CompletableFuture<Void> completed = new CompletableFuture<>();
-        execute(() -> {
+        return execute(() -> {
             try (Connection connection = connectionSupplier.getUnchecked(); PreparedStatement preparedStatement = connection.prepareStatement(BARREL_STATEMENTS.get(SqlStatements.Type.INSERT))) {
                 preparedStatement.setInt(1, origin.getBlockX());
                 preparedStatement.setInt(2, origin.getBlockY());
@@ -147,14 +145,13 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
             } catch (SQLException e) {
                 throw new PersistenceException(e);
             }
-        }).thenRunAsync(() -> {
+        }).thenComposeAsync(ignored -> {
             List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
             for (Pair<Brew, Integer> brew : barrel.getBrews()) {
                 completableFutures.add(insertBrew(BukkitAdapter.toBreweryLocation(signLocation), brew.second(), brew.first()));
             }
-            FutureUtil.mergeFutures(completableFutures).thenRun(() -> completed.complete(null));
+            return CompletableFuture.allOf(completableFutures.toArray(CompletableFuture<?>[]::new));
         }, executor);
-        return completed;
     }
 
     @Override
@@ -176,8 +173,7 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
 
     @Override
     public CompletableFuture<List<BukkitBarrel>> findBarrels(UUID worldUuid) {
-        CompletableFuture<List<BukkitBarrel>> completed = new CompletableFuture<>();
-        fetch(() -> {
+        return fetch(() -> {
             List<BukkitBarrel> output = new ArrayList<>();
             try (Connection connection = connectionSupplier.getUnchecked(); PreparedStatement preparedStatement = connection.prepareStatement(BARREL_STATEMENTS.get(SqlStatements.Type.FIND))) {
                 preparedStatement.setBytes(1, DecoderEncoder.asBytes(worldUuid));
@@ -208,7 +204,7 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
                 throw new PersistenceException(e);
             }
             return output;
-        }).thenAcceptAsync(barrels -> {
+        }).thenComposeAsync(barrels -> {
             List<CompletableFuture<Void>> barrelBrewsLoadedFuture = new ArrayList<>();
             for (BukkitBarrel barrel : barrels) {
                 BrewInventoryImpl barrelInventory = barrel.getInventory();
@@ -217,9 +213,8 @@ public record SqLiteBarrelSession(Executor executor, PersistenceSupplier<Connect
                                 brews.forEach(result -> barrelInventory.set(result.brew(), result.position()))
                         ));
             }
-            FutureUtil.mergeFutures(barrelBrewsLoadedFuture)
-                    .thenRun(() -> completed.complete(barrels));
+            return CompletableFuture.allOf(barrelBrewsLoadedFuture.toArray(CompletableFuture<?>[]::new))
+                    .thenApply(ignored -> barrels);
         }, executor);
-        return completed;
     }
 }

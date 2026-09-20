@@ -1,5 +1,6 @@
 package dev.jsinco.brewery.bukkit.util.color;
 
+import dev.jsinco.brewery.bukkit.compat.PaperCompatibility;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.jspecify.annotations.Nullable;
 import software.amazon.awssdk.http.HttpStatusCode;
@@ -16,8 +17,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -42,8 +41,8 @@ public interface ResourcePackSource {
                     .uri(uri)
                     .timeout(Duration.ofSeconds(10))
                     .headers(
-                            HttpHeaderNames.USER_AGENT.toString(), "Minecraft Java/1.21.11",
-                            "X-Minecraft-Version", "1.21.11",
+                            HttpHeaderNames.USER_AGENT.toString(), "Minecraft Java/" + PaperCompatibility.TARGET_MINECRAFT_VERSION,
+                            "X-Minecraft-Version", PaperCompatibility.TARGET_MINECRAFT_VERSION,
                             "X-Minecraft-UUID", (playerUuid == null ? UUID.randomUUID() : playerUuid).toString().replace("-", "")
                     ).GET()
                     .build();
@@ -54,16 +53,11 @@ public interface ResourcePackSource {
                 if (response.statusCode() != HttpStatusCode.OK) {
                     throw new IOException(String.format("HTTP response %s: %s", response.statusCode(), new String(response.body(), StandardCharsets.UTF_8)));
                 }
-                if (sha256) {
-                    MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-                    return READER.readFromInputStream(new ByteArrayInputStream(
-                            messageDigest.digest(response.body())
-                    ));
-                } else {
-                    return READER.readFromInputStream(new ByteArrayInputStream(response.body()));
-                }
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException(e);
+                // Keep the legacy sha256 component for binary/source compatibility. It
+                // previously replaced the ZIP with its 32-byte digest, which could never
+                // be parsed as a resource pack. The downloaded body is the pack in both
+                // cases; hashes belong to request validation, not ZIP decoding.
+                return READER.readFromInputStream(new ByteArrayInputStream(response.body()));
             }
         }
 
