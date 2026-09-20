@@ -75,6 +75,29 @@ class BrewTest {
     }
 
     @Test
+    void arbitraryMultiStepRecipeMatchesWithoutFixedPipelineAssumptions() {
+        List<dev.jsinco.brewery.api.brew.BrewingStep> steps = List.of(
+                new CookStepImpl(new PassedMoment(10 * Moment.MINUTE),
+                        Map.of(new SimpleIngredient(Material.WHEAT), 3), CauldronType.WATER),
+                new DistillStepImpl(2),
+                new AgeStepImpl(new PassedMoment(2 * Moment.DEFAULT_AGING_YEAR), BarrelTypes.OAK),
+                new MixStepImpl(new PassedMoment(3 * Moment.MINUTE),
+                        Map.of(new SimpleIngredient(Material.APPLE), 1), CauldronType.WATER),
+                new AgeStepImpl(new PassedMoment(Moment.DEFAULT_AGING_YEAR), BarrelTypes.ACACIA)
+        );
+        Recipe<ItemStack> recipe = new RecipeImpl.Builder<ItemStack>("arbitrary_pipeline")
+                .recipeResults(QualityData.equalValued(BukkitRecipeResult.GENERIC))
+                .steps(steps)
+                .build();
+        registry.registerRecipe(recipe);
+        Brew brew = new BrewImpl(steps);
+
+        assertEquals(recipe, brew.closestRecipe(registry).orElseThrow());
+        assertTrue(brew.score(recipe).completed());
+        assertEquals(BrewQuality.EXCELLENT, brew.quality(recipe).orElseThrow());
+    }
+
+    @Test
     void closestRecipe_differingBarrelType() {
         setupRecipes();
         BrewImpl brew = new BrewImpl(

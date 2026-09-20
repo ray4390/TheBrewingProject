@@ -11,6 +11,7 @@ import dev.jsinco.brewery.brew.AgeStepImpl;
 import dev.jsinco.brewery.brew.BrewImpl;
 import dev.jsinco.brewery.brew.CookStepImpl;
 import dev.jsinco.brewery.brew.DistillStepImpl;
+import dev.jsinco.brewery.brew.MixStepImpl;
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.ingredient.ResolvedIngredientManagerImpl;
 import dev.jsinco.brewery.bukkit.ingredient.SimpleIngredient;
@@ -58,6 +59,14 @@ public class BrewSerializerTest {
                         List.of()
                 )),
                 Arguments.of(sampleBrew()),
+                Arguments.of(new BrewImpl(List.of(
+                        new MixStepImpl(new PassedMoment(15), Map.of(SimpleIngredient.from("apple").orElseThrow(), 2), CauldronType.WATER),
+                        new AgeStepImpl(new PassedMoment(40), BarrelTypes.OAK),
+                        new DistillStepImpl(2),
+                        new CookStepImpl(new PassedMoment(25), Map.of(SimpleIngredient.from("wheat").orElseThrow(), 3), CauldronType.LAVA),
+                        new AgeStepImpl(new PassedMoment(60), BarrelTypes.ACACIA),
+                        new MixStepImpl(new PassedMoment(10), Map.of(), CauldronType.WATER)
+                ))),
                 Arguments.of(sampleBrew()
                         .withMeta(Key.key("test", "sample"), MetaDataType.STRING, "sample text")
                 )

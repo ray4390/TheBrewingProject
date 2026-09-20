@@ -122,6 +122,7 @@ public class MetaDataTest {
         MetaData meta2 = new MetaData().withMeta(testKey, MetaDataType.BYTE_ARRAY, new byte[] { 1, 2, 3 });
         assertEquals(meta1, meta2);
         assertEquals(meta2, meta1);
+        assertEquals(meta1.hashCode(), meta2.hashCode());
     }
 
 }

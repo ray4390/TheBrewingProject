@@ -6,17 +6,16 @@ import dev.jsinco.brewery.bukkit.testutil.TBPServerMock;
 import org.bukkit.Material;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
+import org.mockbukkit.mockbukkit.exception.UnimplementedOperationException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled("Current MockBukkit version does not support player args in Brigadier commands")
 class BreweryCommandTest {
 
     PlayerMock target;
@@ -49,18 +48,25 @@ class BreweryCommandTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/command/create_command_valid.csv")
     void onCreateCommand_valid(String command) {
-        target.performCommand(command);
+        try {
+            target.performCommand(command);
+        } catch (UnimplementedOperationException exception) {
+            // MockBukkit 26.2 does not implement ItemStack#effectiveName, which
+            // is only used to format the post-success message. The item has
+            // already been created by this point; do not skip the assertion.
+            assertEquals("effectiveName", exception.getStackTrace()[0].getMethodName());
+        }
         assertEquals(Material.POTION, target.getInventory().getItemInMainHand().getType(), target.nextMessage());
     }
 
     @Test
     void setStatus() {
         assertDoesNotThrow(() -> target.performCommand("tbp status info"));
-        target.performCommand("tbp status consume 30 40");
+        target.performCommand("tbp status consume alcohol 30 toxins 40");
         DrunkState drunkState = TheBrewingProject.getInstance().getDrunksManager().getDrunkState(target.getUniqueId());
         assertEquals(30, drunkState.modifierValue("alcohol"));
         assertEquals(40, drunkState.modifierValue("toxins"));
-        target.performCommand("tbp status set 10 20");
+        target.performCommand("tbp status set alcohol 10 toxins 20");
         assertDoesNotThrow(() -> target.performCommand("tbp status info"));
         drunkState = TheBrewingProject.getInstance().getDrunksManager().getDrunkState(target.getUniqueId());
         assertEquals(10, drunkState.modifierValue("alcohol"));

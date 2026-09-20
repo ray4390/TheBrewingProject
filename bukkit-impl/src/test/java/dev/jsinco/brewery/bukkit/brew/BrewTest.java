@@ -9,6 +9,7 @@ import dev.jsinco.brewery.brew.AgeStepImpl;
 import dev.jsinco.brewery.brew.BrewImpl;
 import dev.jsinco.brewery.brew.CookStepImpl;
 import dev.jsinco.brewery.brew.DistillStepImpl;
+import dev.jsinco.brewery.brew.MixStepImpl;
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.ingredient.SimpleIngredient;
 import dev.jsinco.brewery.bukkit.testutil.TBPServerMock;
@@ -392,5 +393,42 @@ public class BrewTest {
                 )
         );
         assertNotEquals(brew1, brew2);
+    }
+
+    @Test
+    void metadataChangesAffectEqualityAndHashCode() {
+        Brew plain = sampleSingleStepBrew();
+        Brew withMetadata = plain.withMeta(
+                net.kyori.adventure.key.Key.key("raycraft", "persistence-test"),
+                dev.jsinco.brewery.api.meta.MetaDataType.STRING,
+                "updated"
+        );
+
+        assertNotEquals(plain, withMetadata);
+        assertNotEquals(plain.hashCode(), withMetadata.hashCode());
+    }
+
+    @Test
+    void reprocessingPreservesCompletedArbitrarySteps() {
+        List<BrewingStep> original = List.of(
+                new DistillStepImpl(1),
+                new AgeStepImpl(new PassedMoment(dev.jsinco.brewery.api.moment.Moment.DEFAULT_AGING_YEAR), BarrelTypes.OAK),
+                new CookStepImpl(new PassedMoment(30), Map.of(), CauldronType.WATER)
+        );
+        BrewingStep readdedMix = new MixStepImpl(
+                new PassedMoment(10), Map.of(SimpleIngredient.from("apple").orElseThrow(), 2), CauldronType.WATER
+        );
+
+        Brew reprocessed = new BrewImpl(original).withStep(readdedMix);
+
+        assertEquals(List.of(original.get(0), original.get(1), original.get(2), readdedMix), reprocessed.getSteps());
+    }
+
+    private static Brew sampleSingleStepBrew() {
+        return new BrewImpl(List.of(new CookStepImpl(
+                new PassedMoment(20),
+                Map.of(SimpleIngredient.from("wheat").orElseThrow(), 1),
+                CauldronType.WATER
+        )));
     }
 }
