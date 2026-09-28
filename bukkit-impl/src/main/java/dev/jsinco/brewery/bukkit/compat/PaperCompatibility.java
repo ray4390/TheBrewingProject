@@ -11,7 +11,7 @@ import java.util.Set;
  */
 public final class PaperCompatibility {
 
-    public static final String TARGET_MINECRAFT_VERSION = "26.2";
+    public static final String TARGET_MINECRAFT_VERSION = "26.3";
     private static final Set<String> SUPPORTED_MINECRAFT_VERSIONS = Set.of(TARGET_MINECRAFT_VERSION);
 
     private PaperCompatibility() {

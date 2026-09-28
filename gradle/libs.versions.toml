@@ -1,5 +1,6 @@
 [versions]
-paper = "26.2.build.126-stable"
+paper = "26.3.build.134-beta"
+paper-test = "26.2.build.126-stable"
 
 # libraries
 gson = "2.11.0"
@@ -46,6 +47,7 @@ sqlite-jdbc = "3.50.1.0"
 
 [libraries]
 paper-api = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
+paper-api-test = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper-test" }
 
 # libraries
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }

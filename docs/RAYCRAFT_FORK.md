@@ -8,9 +8,11 @@ names, configuration keys, persistent-data keys, database schema, and Git
 history so that upstream fixes can still be merged. Stability and data safety
 take priority when an upstream-compatible choice is not safe for production.
 
-The qualified production target is **Paper 26.2 build 126 (stable)** on
-**Java 25**. Paper 26.3 and later releases are not supported until they have
-been deliberately compiled, tested, and exercised on a temporary server. The
+The qualified RayCraft target is **Paper 26.3 build 134 (beta)**, Paper commit
+`643a11a`, API `26.3.build.134-beta`, on **Java 25**. This qualification is
+for that exact build; later Paper 26.3 builds or channels are not automatically
+qualified until they have been deliberately compiled, tested, and exercised on
+a temporary server. The
 runtime compatibility entry point is
 `bukkit-impl/src/main/java/dev/jsinco/brewery/bukkit/compat/PaperCompatibility.java`.
 Add future version-specific adapters in that package instead of distributing
@@ -62,32 +64,46 @@ arbitrary multi-step sequences, brew reprocessing, structure matching,
 commands, drunken text, metadata, SQLite shutdown draining, and registry
 reload cleanup.
 
-The CI job then tests that same shaded JAR (without rebuilding it) on Paper
-26.2 build 126. To reproduce the lifecycle suite locally:
+The CI job then tests that same shaded JAR (without rebuilding it) on the exact
+qualified Paper 26.3 build 134. To reproduce the lifecycle suite locally:
 
 ```bash
-python3 scripts/test-paper-26.2.py \
+python3 scripts/test-paper-26.3.py \
   --jar bukkit-impl/build/libs/TheBrewingProject-<version>.jar \
   --java "$JAVA_HOME/bin/java"
 ```
 
-The harness verifies Paper's pinned SHA-256, creates an isolated temporary
-server, accepts the EULA only there, and performs fresh start/stop, restart,
-five reloads, shutdown, and a final restart. It seeds an upstream schema-v3
-fixture containing a version-0 brew in a barrel, distillery, and cauldron plus
-a persisted drunken state. The structure coordinates are deliberately in an
-unloaded distant chunk; row counts and SQLite integrity must remain unchanged.
-It also checks the upstream `900a3f4d` default-resource hashes embedded in the
-JAR, deterministic counts (29 recipes and 3 structures), `/tbp version`, and
-fatal runtime log patterns. `--optional-plugin /path/to/plugin.jar` is
-repeatable; CI runs a second lifecycle suite with PlaceholderAPI 2.12.3.
+The harness resolves build 134 through PaperMC's Fill downloads API, verifies
+the API-provided SHA-256, creates an isolated temporary server, accepts the EULA
+only there, and performs fresh start/stop, restart, five reloads, shutdown, and
+a final restart. It seeds an upstream schema-v3 fixture containing a version-0
+brew in a real barrel record, barrel brew, distillery, distillery brew, and
+cauldron. Those structural rows must remain byte-for-byte equivalent across
+reloads and restarts and SQLite integrity must remain `ok`.
+
+The drunken-state fixture is deliberately different from the older 26.2
+harness: it reads TBP's current persisted internal clock and seeds a long-lived
+active modifier at that timestamp. This tests persistence of a genuinely active
+state without treating TBP's intentional elapsed-time expiry cleanup as
+database corruption. The structure coordinates remain in an unloaded distant
+chunk. The harness also checks the upstream `900a3f4d` default-resource hashes
+embedded in the JAR, deterministic counts (29 recipes and 3 structures),
+`/tbp version`, the exact Paper build/commit diagnostic, and fatal runtime log
+patterns. `--optional-plugin /path/to/plugin.jar` is repeatable; CI runs a
+second lifecycle suite with PlaceholderAPI 2.12.3.
+
+MockBukkit does not currently publish a 26.3 artifact. Unit tests therefore
+compile against the qualified Paper 26.3 API while their MockBukkit runtime
+stays on the supported 26.2 API line. That test-runtime constraint is not a
+claim of 26.2 production support for the 26.3 artifact; the pinned real-Paper
+lifecycle suite is the authoritative runtime qualification.
 
 ## Paper API updates
 
 For a later Paper release:
 
-1. Confirm the release is stable and note its required Java version in Paper's
-   official documentation.
+1. Confirm the intended Paper release channel, exact build, commit, API
+   coordinate, and required Java version in Paper's official metadata.
 2. Update `minecraft.version` in `gradle.properties`, the `paper` coordinate in
    `gradle/libs.versions.toml`, `supportedPaperVersions`, `runServer`, and
    `apiVersion` in `bukkit-impl/build.gradle.kts`.
@@ -126,7 +142,7 @@ branch. Never rebase or force-push a shared production branch.
 
 ## Intentional RayCraft divergences
 
-- Paper 26.2/Java 25 is the explicit production baseline.
+- Paper 26.3 build 134 beta / Java 25 is the explicit qualified RayCraft baseline.
 - Paper compatibility and startup qualification are reported centrally.
 - SQLite queues are drained and the pool/executor are closed on shutdown.
   Reload keeps the live database instance used by registered
@@ -155,13 +171,14 @@ branch. Never rebase or force-push a shared production branch.
   timeout, preserves interruption, and has no Netty/AWS runtime dependency.
 
 No PDC key, NamespacedKey, brew serialization version, or SQLite schema version
-was changed for the Paper 26.2 port. Version-0 brew JSON remains readable.
+was changed for the Paper 26.3 forward-port. Version-0 brew JSON remains
+readable.
 
 ## Release procedure
 
 1. Fetch upstream and review commits not yet merged.
 2. Run `./gradlew clean build --no-daemon` with Java 25.
-3. Run `scripts/test-paper-26.2.py` against the shaded JAR (CI performs this
+3. Run `scripts/test-paper-26.3.py` against the shaded JAR (CI performs this
    both without optional plugins and with PlaceholderAPI).
 4. Confirm the harness reports all four lifecycles and all five reloads passed.
 5. Back up the production `plugins/TheBrewingProject` directory and world
