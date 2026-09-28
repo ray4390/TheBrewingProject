@@ -30,30 +30,27 @@ jobs:
       - name: Clean build and run all tests
         run: ./gradlew clean build --no-daemon
 
-      - name: Download pinned integration dependencies
+      - name: Download pinned optional integration dependency
         run: |
-          curl --fail --location --retry 3 --output paper-26.2-126.jar \
-            https://fill-data.papermc.io/v1/objects/9c95eb088b903d9ed96cd457838f3078f02407a965dc8ae36d2c4e551a04355a/paper-26.2-126.jar
-          echo "9c95eb088b903d9ed96cd457838f3078f02407a965dc8ae36d2c4e551a04355a  paper-26.2-126.jar" | sha256sum --check
           curl --fail --location --retry 3 --output PlaceholderAPI-2.12.3.jar \
             https://cdn.modrinth.com/data/lKEzGugV/versions/pIvQcXW8/PlaceholderAPI-2.12.3.jar
           echo "fde03259f5af6938f3c33eeb4d814000a1adabf1d2304ce14970be81f609a437  PlaceholderAPI-2.12.3.jar" | sha256sum --check
 
-      - name: Paper 26.2 lifecycle and upgrade fixture test
+      - name: Paper 26.3 build 134 lifecycle and upgrade fixture test
         shell: bash
         run: |
           plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
-          python3 scripts/test-paper-26.2.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --paper-jar paper-26.2-126.jar
+          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java"
 
-      - name: Paper 26.2 PlaceholderAPI integration test
+      - name: Paper 26.3 build 134 PlaceholderAPI integration test
         shell: bash
         run: |
           plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
-          python3 scripts/test-paper-26.2.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --paper-jar paper-26.2-126.jar --optional-plugin PlaceholderAPI-2.12.3.jar
+          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --optional-plugin PlaceholderAPI-2.12.3.jar
 
-      - name: Preserve production plugin JAR
+      - name: Preserve qualified plugin JAR
         uses: actions/upload-artifact@v4
         with:
-          name: TheBrewingProject-Paper-26.2
+          name: TheBrewingProject-Paper-26.3-build-134
           path: bukkit-impl/build/libs/TheBrewingProject-*.jar
           if-no-files-found: error
