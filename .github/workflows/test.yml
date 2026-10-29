@@ -57,8 +57,15 @@ jobs:
           test "${#candidates[@]}" -eq 1
           cp "${candidates[0]}" ChestShop-3.13-pre-1.jar
           sha256sum ChestShop-3.13-pre-1.jar
+          # ChestShop intentionally disables itself without an economy. Use
+          # real, checksum-pinned economy plugins in this disposable harness.
+          python3 scripts/ci-chestshop-deps.py
           plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
-          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --optional-plugin ChestShop-3.13-pre-1.jar --require-startup-log "Recipe-based ChestShops enabled"
+          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" \
+            --optional-plugin ChestShop-3.13-pre-1.jar \
+            --optional-plugin VaultUnlocked-2.20.3.jar \
+            --optional-plugin EssentialsX-2.22.0.jar \
+            --require-startup-log "Recipe-based ChestShops enabled"
 
       - name: Verify and checksum deployable JAR
         shell: bash
