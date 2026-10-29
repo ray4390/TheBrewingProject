@@ -16,13 +16,13 @@ ESSENTIALS_URL = "https://github.com/EssentialsX/Essentials/releases/download/2.
 VAULT_PROJECT = "https://api.modrinth.com/v2/project/vaultunlocked/version"
 
 
-def download(url: str, output: pathlib.Path, sha256: str) -> None:
+def download(url: str, output: pathlib.Path, expected: str, algorithm: str = "sha256") -> None:
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": AGENT}), timeout=90) as response:
         data = response.read(12_000_000)
-    if hashlib.sha256(data).hexdigest() != sha256:
+    if hashlib.new(algorithm, data).hexdigest() != expected:
         raise ValueError(f"Unexpected file checksum for {output.name}")
     output.write_bytes(data)
-    print(f"Verified {output.name}, sha256={sha256}", flush=True)
+    print(f"Verified {output.name}, {algorithm}={expected}", flush=True)
 
 
 def main() -> None:
@@ -40,10 +40,13 @@ def main() -> None:
     url = artifact["url"]
     if not url.startswith(("https://cdn.modrinth.com/", "https://cdn.modrinth.com")):
         raise ValueError("Unexpected VaultUnlocked download hostname")
-    sha256 = artifact["hashes"]["sha256"]
-    if len(sha256) != 64:
-        raise ValueError("Untrusted VaultUnlocked SHA256 length")
-    download(url, output / "VaultUnlocked-2.20.3.jar", sha256)
+    # Modrinth currently advertises sha512 and sha1 for this release.
+    hashes = artifact["hashes"]
+    algorithm = "sha512" if "sha512" in hashes else "sha256"
+    digest = hashes.get(algorithm, "")
+    if len(digest) != (128 if algorithm == "sha512" else 64):
+        raise ValueError("Missing expected VaultUnlocked file checksum")
+    download(url, output / "VaultUnlocked-2.20.3.jar", digest, algorithm)
 
 
 if __name__ == "__main__":
