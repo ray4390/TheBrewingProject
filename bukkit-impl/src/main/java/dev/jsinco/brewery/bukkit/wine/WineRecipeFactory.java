@@ -39,8 +39,17 @@ public final class WineRecipeFactory {
 
     public static Optional<Recipe<ItemStack>> candidate(List<BrewingStep> steps, RecipeRegistry<ItemStack> registry) {
         if (!Config.config().raycraftWinemakingEnabled()
-                || dev.jsinco.brewery.bukkit.TheBrewingProject.getInstance().getWineryRegistry() == null
-                || steps.isEmpty() || steps.size() > 2
+                || dev.jsinco.brewery.bukkit.TheBrewingProject.getInstance().getWineryRegistry() == null) {
+            return Optional.empty();
+        }
+        return candidateForEnabledServer(steps, registry);
+    }
+
+    // Package-private: exercise recipe selection and regression rules without
+    // turning on the production feature during isolated unit tests.
+    static Optional<Recipe<ItemStack>> candidateForEnabledServer(List<BrewingStep> steps,
+                                                                  RecipeRegistry<ItemStack> registry) {
+        if (steps.isEmpty() || steps.size() > 2
                 || !(steps.getFirst() instanceof BrewingStep.Cook cook)) {
             return Optional.empty();
         }
