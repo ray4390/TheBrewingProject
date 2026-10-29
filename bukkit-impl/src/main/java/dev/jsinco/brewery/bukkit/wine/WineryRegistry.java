@@ -346,6 +346,35 @@ public final class WineryRegistry {
         return Optional.of(code);
     }
 
+    /**
+     * TBP sealing creates a fresh item and deliberately removes brewing steps.
+     * Preserve only a validated winery signature and display name across that
+     * transformation; never copy arbitrary PDC or accept forged input labels.
+     */
+    public synchronized ItemStack retainLabelAfterSeal(ItemStack original, ItemStack sealed) {
+        if (verifiedShopCode(original).isEmpty()) return sealed;
+        if (sealed == null || sealed.getType() != Material.POTION) return sealed;
+        var from = original.getPersistentDataContainer();
+        var to = sealed.getPersistentDataContainer();
+        String oldRecipe = from.get(RECIPE, PersistentDataType.STRING);
+        String newRecipe = to.get(RECIPE, PersistentDataType.STRING);
+        Double oldScore = from.get(SCORE, PersistentDataType.DOUBLE);
+        Double newScore = to.get(SCORE, PersistentDataType.DOUBLE);
+        if (!java.util.Objects.equals(oldRecipe, newRecipe)
+                || !java.util.Objects.equals(oldScore, newScore)) return sealed;
+        String winery = from.get(WINERY, PersistentDataType.STRING);
+        String brand = from.get(BRAND, PersistentDataType.STRING);
+        String signature = from.get(SIGNATURE, PersistentDataType.STRING);
+        sealed.editPersistentDataContainer(pdc -> {
+            pdc.set(WINERY, PersistentDataType.STRING, winery);
+            pdc.set(BRAND, PersistentDataType.STRING, brand);
+            pdc.set(SIGNATURE, PersistentDataType.STRING, signature);
+        });
+        var originalName = original.getItemMeta().displayName();
+        if (originalName != null) sealed.editMeta(meta -> meta.displayName(originalName));
+        return sealed;
+    }
+
     public synchronized boolean isShopCode(String code) {
         return code != null && code.matches("W_[0-9A-Fa-f]{8}") && codeIsUsed(code);
     }
