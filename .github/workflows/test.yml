@@ -65,7 +65,8 @@ jobs:
             --optional-plugin ChestShop-3.13-pre-1.jar \
             --optional-plugin VaultUnlocked-2.20.3.jar \
             --optional-plugin EssentialsX-2.22.0.jar \
-            --require-startup-log "Recipe-based ChestShops enabled"
+            --require-startup-log "Recipe-based ChestShops enabled" \
+            --enable-wine-after-first-start
 
       - name: Verify and checksum deployable JAR
         shell: bash
