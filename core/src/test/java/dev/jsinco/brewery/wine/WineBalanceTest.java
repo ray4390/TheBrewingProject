@@ -8,14 +8,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class WineBalanceTest {
     @Test
-    void baselineRetainsClassicWineTargets() {
+    void baselineIngredientTargetsButLiveClassicKeepsItsOwnRecipe() {
         WineBalance.Plan p = WineBalance.plan(Map.of("SWEET_BERRIES", 5)).orElseThrow();
         assertEquals(300, p.cookingSeconds());
         assertEquals(20, p.agingYears());
         assertEquals(8, p.alcohol());
-        assertEquals(6, p.toxins(WineBalance.Quality.BAD));
-        assertEquals(3, p.toxins(WineBalance.Quality.GOOD));
-        assertEquals(1, p.toxins(WineBalance.Quality.EXCELLENT));
+        assertEquals(4, p.toxins(WineBalance.Quality.BAD));
+        assertEquals(1, p.toxins(WineBalance.Quality.GOOD));
+        assertEquals(0, p.toxins(WineBalance.Quality.EXCELLENT));
     }
 
     @Test
@@ -45,8 +45,8 @@ class WineBalanceTest {
     void glowAndMelonOnlyReduceContributionNotExistingToxins() {
         WineBalance.Plan p = WineBalance.plan(Map.of(
                 "SWEET_BERRIES", 5, "GLOW_BERRIES", 2, "MELON_SLICE", 1)).orElseThrow();
-        assertEquals(4, p.toxins(WineBalance.Quality.BAD));
-        assertEquals(1, p.toxins(WineBalance.Quality.GOOD));
+        assertEquals(2, p.toxins(WineBalance.Quality.BAD));
+        assertEquals(0, p.toxins(WineBalance.Quality.GOOD));
         assertEquals(0, p.toxins(WineBalance.Quality.EXCELLENT));
         assertTrue(p.alcohol() < 8);
     }
