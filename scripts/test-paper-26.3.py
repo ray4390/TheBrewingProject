@@ -434,6 +434,9 @@ def main() -> int:
         active_server = boot(java, retained, paper_jar, "01-fresh")
         for required in args.require_startup_log:
             if not any(required in line for line in active_server.lines):
+                print("=== Recent Paper startup log (diagnostic) ===", flush=True)
+                for startup_line in active_server.lines[-140:]:
+                    print(startup_line, flush=True)
                 raise RuntimeError("Missing required plugin startup confirmation: " + required)
         active_server.stop()
         active_server.assert_clean()
