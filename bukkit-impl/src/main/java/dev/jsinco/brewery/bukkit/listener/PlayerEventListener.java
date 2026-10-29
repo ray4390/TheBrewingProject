@@ -35,6 +35,8 @@ import dev.jsinco.brewery.bukkit.effect.event.DrunkEventExecutor;
 import dev.jsinco.brewery.bukkit.ingredient.BukkitIngredientManager;
 import dev.jsinco.brewery.bukkit.ingredient.UncheckedIngredientImpl;
 import dev.jsinco.brewery.bukkit.recipe.RecipeEffectsImpl;
+import dev.jsinco.brewery.bukkit.wine.WineBenefit;
+import dev.jsinco.brewery.wine.WineBalance;
 import dev.jsinco.brewery.bukkit.util.BukkitIngredientUtil;
 import dev.jsinco.brewery.bukkit.util.SoundPlayer;
 import dev.jsinco.brewery.configuration.Config;
@@ -349,6 +351,13 @@ public class PlayerEventListener implements Listener {
         if (Config.config().allowUnregisteredIngredients()) {
             return true;
         }
+        // The server-side winemaking gate extends only the allowlisted ingredients.
+        // It never permits arbitrary items or requires players to select a mode.
+        if (Config.config().raycraftWinemakingEnabled()
+                && type != Material.SWEET_BERRIES
+                && WineBalance.plan(java.util.Map.of("SWEET_BERRIES", 5, type.name(), 1)).isPresent()) {
+            return true;
+        }
         return recipeRegistry.isRegisteredIngredient(BukkitIngredientManager.INSTANCE.getIngredient(itemStack));
     }
 
@@ -374,6 +383,7 @@ public class PlayerEventListener implements Listener {
                 return;
             }
             effects.get().applyTo(event.getPlayer());
+            WineBenefit.fromItem(event.getItem()).ifPresent(benefit -> benefit.consume(event.getPlayer()));
             event.setReplacement(consumeEvent.getReplacement());
             Optional.ofNullable(event.getItem().getPersistentDataContainer().get(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE))
                     .ifPresent(score -> Statistics.registerBrewDrunk(BrewQuality.quality(score).orElse(null)));
