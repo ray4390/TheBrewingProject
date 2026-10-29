@@ -32,7 +32,7 @@ Ideal barrel age-years = clamp(20 + 2×(sweet_berries−5) + 2×honey + 3×cocoa
 Wine alcohol added = clamp(8 + floor((sweet_berries−5)/2) + honey + ceil(sugar/2) − min(melon,2), 5, 13)
 Toxins added = max(0, qualityBaseline − (glow>0?1:0) − (glow>0 AND melon>0?1:0)
                     + (quality BAD AND sugar==4 ? 1 : 0))
-Quality baseline toxins: BAD=6, GOOD=3, EXCELLENT=1.
+Quality baseline toxins for **new freeform wines**: BAD=4, GOOD=1, EXCELLENT=0. The existing classic red wine still uses its live recipe's configured modifiers, currently no toxins (checked October 29, 2026).
 ```
 
 TBP's configured cauldron-minute and barrel-aging-year durations are authoritative. The existing five-berry red wine remains governed by the server's **unmodified registered recipe**. The current production recipe (read-only audit, October 29, 2026) is **7 cauldron minutes + one distillation run + 4 TBP aging years in spruce**, not the bundled plugin default of 5 minutes + 20 aging years. That existing drink and its production settings are preserved. New freeform wines use the published nondistilled cook-and-age formula with any TBP barrel. The barrel-cooking quality score is TBP's existing deterministic proximity-based score—small timing errors lower quality gradually. More aging never increases the alcohol score.
