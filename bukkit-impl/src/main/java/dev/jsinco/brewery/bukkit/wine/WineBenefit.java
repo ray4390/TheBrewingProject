@@ -8,7 +8,7 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataContainerView;
+import io.papermc.paper.persistence.PersistentDataContainerView;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
