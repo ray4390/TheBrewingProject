@@ -472,7 +472,7 @@ def main() -> int:
             if not wine_file.is_file():
                 raise RuntimeError("Winery registry was not initialized after enabling the feature")
             winery_text = wine_file.read_text(encoding="utf-8")
-            secret_match = re.search(r'(?m)^signature-key:\\s*["\\']?([A-Za-z0-9+/=]+)', winery_text)
+            secret_match = re.search(r"(?m)^signature-key:\\s*([A-Za-z0-9+/=]{40,})", winery_text)
             if not secret_match:
                 raise RuntimeError("Winery signature secret missing from persisted file")
             winery_secret = secret_match.group(1)
