@@ -185,8 +185,8 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
     public void onItemParse(ItemParseEvent event) {
         if (event.hasItem()) return;
         WineryRegistry registry = TheBrewingProject.getInstance().getWineryRegistry();
-        if (registry != null && registry.isShopCode(event.getItemString().trim())) {
-            event.setItem(new ItemStack(Material.POTION));
+        if (registry != null && event.getItemString() != null && registry.isShopCode(event.getItemString().trim())) {
+            event.setItem(descriptor("wine"));
             return;
         }
         if (legacyPresent) return;
