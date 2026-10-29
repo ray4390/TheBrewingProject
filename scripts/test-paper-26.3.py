@@ -392,6 +392,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--paper-jar", type=pathlib.Path, help="Optional cached Paper 26.3 build 134 JAR")
     parser.add_argument("--optional-plugin", type=pathlib.Path, action="append", default=[],
                         help="Optional integration plugin JAR to copy into the disposable server (repeatable)")
+    parser.add_argument("--require-startup-log", action="append", default=[],
+                        help="Require this exact substring in fresh-start Paper log (repeatable)")
     parser.add_argument("--keep", action="store_true", help="Keep the disposable server directory")
     return parser.parse_args()
 
@@ -430,6 +432,9 @@ def main() -> int:
 
         print(f"TEST 1 fresh start/stop in {retained}")
         active_server = boot(java, retained, paper_jar, "01-fresh")
+        for required in args.require_startup_log:
+            if not any(required in line for line in active_server.lines):
+                raise RuntimeError("Missing required plugin startup confirmation: " + required)
         active_server.stop()
         active_server.assert_clean()
         active_server = None
