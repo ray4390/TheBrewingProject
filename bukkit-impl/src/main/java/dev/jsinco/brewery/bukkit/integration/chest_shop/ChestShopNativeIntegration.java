@@ -259,6 +259,26 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
         event.setStock(selected.toArray(new ItemStack[0]));
     }
 
+    /**
+     * Transitional protection: the old RayBrewShops listener runs at LOWEST
+     * and accepts every bottle with the same base recipe. Refuse any generic
+     * B-code trade whose selected stock contains a branded bottle. Otherwise
+     * an expensive reserve could be sold as ordinary wine before migration.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void protectBrandedStock(PreTransactionEvent event) {
+        String raw = ChestShopSign.getItem(event.getSign()).trim();
+        if (!codeToRecipe.containsKey(raw.toLowerCase(Locale.ROOT))) return;
+        NamespacedKey wineryTag = TheBrewingProject.key("raycraft_winery");
+        for (ItemStack item : event.getStock()) {
+            if (item != null && item.getType() == Material.POTION
+                    && item.getPersistentDataContainer().has(wineryTag)) {
+                event.setCancelled(PreTransactionEvent.TransactionOutcome.INVALID_SHOP);
+                return;
+            }
+        }
+    }
+
     // StockCounterModule compares complete ItemStack metadata against our
     // recipe-only descriptor, so we must count verified bottles by recipe.
     private void updateStock(Inventory inventory) {
