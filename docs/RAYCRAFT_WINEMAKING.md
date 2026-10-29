@@ -35,7 +35,7 @@ Toxins added = max(0, qualityBaseline − (glow>0?1:0) − (glow>0 AND melon>0?1
 Quality baseline toxins: BAD=6, GOOD=3, EXCELLENT=1.
 ```
 
-TBP's configured cauldron-minute and barrel-aging-year durations are authoritative. Ordinary five-berry red wine still follows the original **5 cooking minutes + 20 age-years** registered recipe. The barrel-cooking quality score is TBP's existing deterministic proximity-based score—small timing errors lower quality gradually. More aging never increases the alcohol score.
+TBP's configured cauldron-minute and barrel-aging-year durations are authoritative. The existing five-berry red wine remains governed by the server's **unmodified registered recipe**. The current production recipe (read-only audit, October 29, 2026) is **7 cauldron minutes + one distillation run + 4 TBP aging years in spruce**, not the bundled plugin default of 5 minutes + 20 aging years. That existing drink and its production settings are preserved. New freeform wines use the published nondistilled cook-and-age formula with any TBP barrel. The barrel-cooking quality score is TBP's existing deterministic proximity-based score—small timing errors lower quality gradually. More aging never increases the alcohol score.
 
 Example: seven sweet berries, one apple, one honey -> **6 minutes 10 seconds** cauldron target, **26 TBP age-years**, **10 alcohol**. If good/excellent, also restores up to two hunger points and half a heart when not on cooldown.
 
