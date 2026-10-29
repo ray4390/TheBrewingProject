@@ -36,6 +36,7 @@ public class BreweryCommand {
     );
 
     public static void register(ReloadableRegistrarEvent<Commands> commands) {
+        WineryCommand.register(commands);
         ArgumentBuilder<CommandSourceStack, ?> eventCommand = Commands.argument("event-type", new EventArgument())
                 .executes(context -> {
                     Player target = getPlayer(context);
