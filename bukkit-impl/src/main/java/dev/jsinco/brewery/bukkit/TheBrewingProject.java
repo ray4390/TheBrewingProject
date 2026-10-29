@@ -372,7 +372,9 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
                     + PaperCompatibility.TARGET_MINECRAFT_VERSION + ". Brewing will continue, but production deployment is not recommended.");
         }
         loadStructures();
-        if (Config.config().raycraftWinemakingEnabled()) {
+        if (Config.config().raycraftWinemakingEnabled() && !Config.config().encryptSensitiveData()) {
+            Logger.logWarn("RayCraft winemaking requires encrypt-sensitive-data: true to protect player recipes; wine expansion and winery commands remain disabled.");
+        } else if (Config.config().raycraftWinemakingEnabled()) {
             try {
                 wineryRegistry = new WineryRegistry(this);
             } catch (IOException ex) {
