@@ -58,7 +58,7 @@ jobs:
           cp "${candidates[0]}" ChestShop-3.13-pre-1.jar
           sha256sum ChestShop-3.13-pre-1.jar
           plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
-          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --optional-plugin ChestShop-3.13-pre-1.jar
+          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --optional-plugin ChestShop-3.13-pre-1.jar --require-startup-log "Recipe-based ChestShops enabled"
 
       - name: Verify and checksum deployable JAR
         shell: bash
