@@ -76,8 +76,9 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
 
     @Override
     public void onEnable() {
-        legacyPresent = Bukkit.getPluginManager().getPlugin("RayBrewShops") != null
-                && Bukkit.getPluginManager().isPluginEnabled("RayBrewShops");
+        // TBP starts before RayBrewShops (which declares a hard TBP dependency).
+        // Detect loaded legacy integration even if it has not enabled yet.
+        legacyPresent = Bukkit.getPluginManager().getPlugin("RayBrewShops") != null;
         Plugin self = TheBrewingProject.getInstance();
         Plugin chestShop = Bukkit.getPluginManager().getPlugin("ChestShop");
         Plugin brewery = Bukkit.getPluginManager().getPlugin("TheBrewingProject");
