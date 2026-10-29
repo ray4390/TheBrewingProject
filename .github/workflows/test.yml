@@ -10,6 +10,11 @@ on:
       - 'raycraft/**'
   workflow_dispatch:
 
+# Do not waste runners on superseded draft PR commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,6 +52,26 @@ jobs:
         run: |
           plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
           python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" --optional-plugin PlaceholderAPI-2.12.3.jar
+
+      - name: ChestShop 3.13-pre-1 native integration lifecycle test
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t candidates < <(find "$HOME/.gradle/caches/modules-2/files-2.1/maven.modrinth/QI2CAnAl/YNfN5x9T" -type f -name '*.jar' -print)
+          test "${#candidates[@]}" -eq 1
+          cp "${candidates[0]}" ChestShop-3.13-pre-1.jar
+          sha256sum ChestShop-3.13-pre-1.jar
+          # ChestShop intentionally disables itself without an economy. Use
+          # real, checksum-pinned economy plugins in this disposable harness.
+          python3 scripts/ci-chestshop-deps.py
+          plugin_jar=$(find bukkit-impl/build/libs -maxdepth 1 -name 'TheBrewingProject-*.jar' -print -quit)
+          python3 scripts/test-paper-26.3.py --jar "$plugin_jar" --java "$JAVA_HOME/bin/java" \
+            --optional-plugin ChestShop-3.13-pre-1.jar \
+            --optional-plugin VaultUnlocked-2.20.3.jar \
+            --optional-plugin EssentialsX-2.22.0.jar \
+            --require-startup-log "Recipe-based ChestShops enabled" \
+            --enable-wine-after-first-start
 
       - name: Verify and checksum deployable JAR
         shell: bash

@@ -7,6 +7,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.jsinco.brewery.api.brew.Brew;
 import dev.jsinco.brewery.brew.BrewImpl;
 import dev.jsinco.brewery.bukkit.brew.BrewAdapterAccess;
+import dev.jsinco.brewery.bukkit.TheBrewingProject;
+import dev.jsinco.brewery.bukkit.wine.WineryRegistry;
 import dev.jsinco.brewery.util.MessageUtil;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -56,7 +58,10 @@ public class SealCommand {
             Optional<Brew> brewOptional = BrewAdapterAccess.fromItem(itemStack);
             if (brewOptional.isPresent()) {
                 oneFound = true;
-                targetInventory.setItem(i, BrewAdapterAccess.toItem(brewOptional.get(), new BrewImpl.State.Seal(volumeMessage)));
+                ItemStack sealed = BrewAdapterAccess.toItem(brewOptional.get(), new BrewImpl.State.Seal(volumeMessage));
+                WineryRegistry wineries = TheBrewingProject.getInstance().getWineryRegistry();
+                if (wineries != null) sealed = wineries.retainLabelAfterSeal(itemStack, sealed);
+                targetInventory.setItem(i, sealed);
             }
         }
         if (oneFound) {
@@ -76,7 +81,10 @@ public class SealCommand {
         BrewAdapterAccess.fromItem(targetInventory.getItemInMainHand())
                 .map(brew -> BrewAdapterAccess.toItem(brew, new BrewImpl.State.Seal(volumeMessage)))
                 .ifPresentOrElse(itemStack -> {
-                    targetInventory.setItemInMainHand(itemStack);
+                    WineryRegistry wineries = TheBrewingProject.getInstance().getWineryRegistry();
+                    ItemStack finalItem = wineries == null ? itemStack
+                            : wineries.retainLabelAfterSeal(targetInventory.getItemInMainHand(), itemStack);
+                    targetInventory.setItemInMainHand(finalItem);
                     MessageUtil.message(sender, "tbp.command.seal-success", Placeholder.unparsed("player_name", target.getName()));
                 }, () -> {
                     MessageUtil.message(sender, "tbp.command.seal-failure");

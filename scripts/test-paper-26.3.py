@@ -392,6 +392,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--paper-jar", type=pathlib.Path, help="Optional cached Paper 26.3 build 134 JAR")
     parser.add_argument("--optional-plugin", type=pathlib.Path, action="append", default=[],
                         help="Optional integration plugin JAR to copy into the disposable server (repeatable)")
+    parser.add_argument("--enable-wine-after-first-start", action="store_true",
+                        help="Enable RayCraft winery feature only in disposable server after first clean boot")
+    parser.add_argument("--require-startup-log", action="append", default=[],
+                        help="Require this exact substring in fresh-start Paper log (repeatable)")
     parser.add_argument("--keep", action="store_true", help="Keep the disposable server directory")
     return parser.parse_args()
 
@@ -430,10 +434,29 @@ def main() -> int:
 
         print(f"TEST 1 fresh start/stop in {retained}")
         active_server = boot(java, retained, paper_jar, "01-fresh")
+        for required in args.require_startup_log:
+            if not any(required in line for line in active_server.lines):
+                print("=== Recent Paper startup log (diagnostic) ===", flush=True)
+                for startup_line in active_server.lines[-140:]:
+                    print(startup_line, flush=True)
+                raise RuntimeError("Missing required plugin startup confirmation: " + required)
         active_server.stop()
         active_server.assert_clean()
         active_server = None
         assert_upstream_resources(jar, retained)
+
+        if args.enable_wine_after_first_start:
+            settings = retained / "plugins" / "TheBrewingProject" / "config.yml"
+            if not settings.is_file():
+                raise RuntimeError("Generated TBP config missing; cannot enable isolated wine test")
+            original = settings.read_text(encoding="utf-8")
+            matches = list(re.finditer(r"(?m)^raycraft-winemaking-enabled: false\s*$", original))
+            if len(matches) != 1:
+                raise RuntimeError("Expected exactly one default-off winery config property in disposable test")
+            settings.write_text(original[:matches[0].start()]
+                + "raycraft-winemaking-enabled: true"
+                + original[matches[0].end():], encoding="utf-8")
+            print("Enabled winery ONLY in disposable Paper test environment", flush=True)
 
         structural_fixture, drunk_seed_time = seed_upstream_v3_fixture(retained)
         print(
@@ -443,6 +466,19 @@ def main() -> int:
 
         print("TEST 2 restart with same world/config/database and upstream fixture")
         active_server = boot(java, retained, paper_jar, "02-upgrade-restart")
+        winery_secret = None
+        if args.enable_wine_after_first_start:
+            wine_file = retained / "plugins" / "TheBrewingProject" / "wineries.yml"
+            if not wine_file.is_file():
+                raise RuntimeError("Winery registry was not initialized after enabling the feature")
+            winery_text = wine_file.read_text(encoding="utf-8")
+            secret_match = re.search(r"(?m)^signature-key:\s*([A-Za-z0-9+/=]{40,})", winery_text)
+            if not secret_match:
+                raise RuntimeError("Winery signature secret missing from persisted file")
+            winery_secret = secret_match.group(1)
+            if len(winery_secret) < 40:
+                raise RuntimeError("Invalid winery secret length")
+            print("Winery registry persisted with authenticated signing key", flush=True)
         active_server.stop()
         active_server.assert_clean()
         active_server = None
@@ -464,6 +500,10 @@ def main() -> int:
         integration_mode = "with supplied optional integrations" if args.optional_plugin else "without optional integrations"
         print(f"TEST 4 final restart {integration_mode}")
         active_server = boot(java, retained, paper_jar, "04-final-restart")
+        if args.enable_wine_after_first_start:
+            wine_file = retained / "plugins" / "TheBrewingProject" / "wineries.yml"
+            if winery_secret not in wine_file.read_text(encoding="utf-8"):
+                raise RuntimeError("Winery secret rotated during restart/reload")
         active_server.stop()
         active_server.assert_clean()
         active_server = None
