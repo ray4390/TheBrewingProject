@@ -274,6 +274,10 @@ public final class WineryRegistry {
         String code = slug(name);
         String path = "wineries." + id + ".brands." + code;
         if (state.contains(path)) return "That signature wine already exists.";
+        var registered = state.getConfigurationSection("wineries." + id + ".brands");
+        if (registered != null && registered.getKeys(false).size() >= 8) {
+            return "A winery can register at most eight signature wines.";
+        }
         String formula = fingerprint(held).orElse(null);
         if (formula == null) return "Hold an unsealed, properly aged good-quality TBP wine.";
         String itemCode = codeFor(id, code);
