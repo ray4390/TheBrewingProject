@@ -359,6 +359,7 @@ public class PlayerEventListener implements Listener {
         // The server-side winemaking gate extends only the allowlisted ingredients.
         // It never permits arbitrary items or requires players to select a mode.
         if (Config.config().raycraftWinemakingEnabled()
+                && TheBrewingProject.getInstance().getWineryRegistry() != null
                 && type != Material.SWEET_BERRIES
                 && WineBalance.plan(java.util.Map.of("SWEET_BERRIES", 5, type.name(), 1)).isPresent()) {
             return true;
