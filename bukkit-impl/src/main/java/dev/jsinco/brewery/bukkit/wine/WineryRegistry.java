@@ -15,7 +15,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataContainerView;
+import io.papermc.paper.persistence.PersistentDataContainerView;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -66,8 +66,18 @@ public final class WineryRegistry {
         if (Files.isSymbolicLink(file.toPath())) {
             throw new IOException("Refusing symlink winery database");
         }
-        state = YamlConfiguration.loadConfiguration(file);
+        state = new YamlConfiguration();
+        if (file.exists()) {
+            try {
+                state.load(file);
+            } catch (Exception ex) {
+                throw new IOException("Existing winery database cannot be parsed; refusing to reset it", ex);
+            }
+        }
         String encoded = state.getString("signature-key");
+        if (file.exists() && encoded == null) {
+            throw new IOException("Existing winery database has no signature secret; refusing to overwrite it");
+        }
         if (encoded == null) {
             byte[] generated = new byte[32];
             new SecureRandom().nextBytes(generated);
