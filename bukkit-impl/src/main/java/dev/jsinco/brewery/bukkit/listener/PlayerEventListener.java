@@ -36,6 +36,7 @@ import dev.jsinco.brewery.bukkit.ingredient.BukkitIngredientManager;
 import dev.jsinco.brewery.bukkit.ingredient.UncheckedIngredientImpl;
 import dev.jsinco.brewery.bukkit.recipe.RecipeEffectsImpl;
 import dev.jsinco.brewery.bukkit.wine.WineBenefit;
+import dev.jsinco.brewery.bukkit.wine.WineryRegistry;
 import dev.jsinco.brewery.wine.WineBalance;
 import dev.jsinco.brewery.bukkit.util.BukkitIngredientUtil;
 import dev.jsinco.brewery.bukkit.util.SoundPlayer;
@@ -182,6 +183,10 @@ public class PlayerEventListener implements Listener {
             ItemStack sealed = BrewAdapterAccess.fromItem(mainHand)
                     .map(brew -> BrewAdapterAccess.toItem(brew, new BrewImpl.State.Seal(offHand.hasData(DataComponentTypes.CUSTOM_NAME) ? MiniMessage.miniMessage().serialize(offHand.getData(DataComponentTypes.CUSTOM_NAME)) : null)))
                     .orElse(mainHand);
+            WineryRegistry wineries = TheBrewingProject.getInstance().getWineryRegistry();
+            if (wineries != null && sealed != mainHand) {
+                sealed = wineries.retainLabelAfterSeal(mainHand, sealed);
+            }
             inventory.setItemInMainHand(sealed);
             event.setUseItemInHand(Event.Result.DENY);
             decreaseItem(offHand, event.getPlayer());
