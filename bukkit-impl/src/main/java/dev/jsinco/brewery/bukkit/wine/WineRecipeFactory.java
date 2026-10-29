@@ -38,6 +38,7 @@ public final class WineRecipeFactory {
 
     public static Optional<Recipe<ItemStack>> candidate(List<BrewingStep> steps, RecipeRegistry<ItemStack> registry) {
         if (!Config.config().raycraftWinemakingEnabled()
+                || dev.jsinco.brewery.bukkit.TheBrewingProject.getInstance().getWineryRegistry() == null
                 || steps.isEmpty() || steps.size() > 2
                 || !(steps.getFirst() instanceof BrewingStep.Cook cook)) {
             return Optional.empty();
