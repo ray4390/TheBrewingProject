@@ -91,14 +91,16 @@ public final class WineBalance {
                        int sugarFaultRisk) {
 
         /**
-         * TBP default wine uses 6/3/1 toxins (bad/good/excellent).
-         * Toxicity can never be negative. Smooth wine never removes existing toxins.
+         * RayCraft's live red wine has no configured toxins. New wines introduce
+         * modest production-fault toxins (bad/good/excellent: 4/1/0) rather
+         * than inheriting the unrelated bundled TBP 6/3/1 default.
+         * This is never a cure for a player's existing toxins.
          */
         public int toxins(Quality quality) {
             int baseline = switch (quality) {
-                case BAD -> 6;
-                case GOOD -> 3;
-                case EXCELLENT -> 1;
+                case BAD -> 4;
+                case GOOD -> 1;
+                case EXCELLENT -> 0;
             };
             int reduced = baseline - toxinReduction;
             // Over-sweetened wine is harder to brew cleanly, never a guaranteed advantage.
