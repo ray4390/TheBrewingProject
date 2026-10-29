@@ -1,6 +1,7 @@
 package dev.jsinco.brewery.bukkit.wine;
 
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
+import dev.jsinco.brewery.configuration.Config;
 import dev.jsinco.brewery.bukkit.brew.BrewAdapterAccess;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -48,6 +49,9 @@ public record WineBenefit(int food, int healingHalfHearts, int speedSeconds) {
     }
 
     public static Optional<WineBenefit> fromItem(ItemStack item) {
+        if (!Config.config().raycraftWinemakingEnabled()) {
+            return Optional.empty();
+        }
         PersistentDataContainerView pdc = item.getPersistentDataContainer();
         if (!pdc.has(MARKER, PersistentDataType.BOOLEAN)
                 || !Boolean.TRUE.equals(pdc.get(MARKER, PersistentDataType.BOOLEAN))
