@@ -324,6 +324,7 @@ bukkit {
         "MythicMobs",
         "MiniPlaceholders",
         "QuickShop",
+        "ChestShop",
         "GriefDefender",
         "GSit",
         "BodyHealth"
