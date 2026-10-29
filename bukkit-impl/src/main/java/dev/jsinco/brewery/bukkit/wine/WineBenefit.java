@@ -49,7 +49,8 @@ public record WineBenefit(int food, int healingHalfHearts, int speedSeconds) {
     }
 
     public static Optional<WineBenefit> fromItem(ItemStack item) {
-        if (!Config.config().raycraftWinemakingEnabled()) {
+        if (!Config.config().raycraftWinemakingEnabled()
+                || TheBrewingProject.getInstance().getWineryRegistry() == null) {
             return Optional.empty();
         }
         PersistentDataContainerView pdc = item.getPersistentDataContainer();
