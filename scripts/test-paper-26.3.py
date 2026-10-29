@@ -450,7 +450,7 @@ def main() -> int:
             if not settings.is_file():
                 raise RuntimeError("Generated TBP config missing; cannot enable isolated wine test")
             original = settings.read_text(encoding="utf-8")
-            matches = list(re.finditer(r"(?m)^raycraft-winemaking-enabled: false\\s*$", original))
+            matches = list(re.finditer(r"(?m)^raycraft-winemaking-enabled: false\s*$", original))
             if len(matches) != 1:
                 raise RuntimeError("Expected exactly one default-off winery config property in disposable test")
             settings.write_text(original[:matches[0].start()]
@@ -472,7 +472,7 @@ def main() -> int:
             if not wine_file.is_file():
                 raise RuntimeError("Winery registry was not initialized after enabling the feature")
             winery_text = wine_file.read_text(encoding="utf-8")
-            secret_match = re.search(r"(?m)^signature-key:\\s*([A-Za-z0-9+/=]{40,})", winery_text)
+            secret_match = re.search(r"(?m)^signature-key:\s*([A-Za-z0-9+/=]{40,})", winery_text)
             if not secret_match:
                 raise RuntimeError("Winery signature secret missing from persisted file")
             winery_secret = secret_match.group(1)
