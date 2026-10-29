@@ -434,12 +434,10 @@ public final class WineryRegistry {
             ingredients.merge(simple.material().name(), entry.getValue(), Integer::sum);
         }
         if (dev.jsinco.brewery.wine.WineBalance.plan(ingredients).isEmpty()) return Optional.empty();
-        long cookSecondsBucket = Math.round(cook.time().moment() * 60D /
-                Config.config().cauldrons().cookingMinuteTicks() / 10D);
-        long ageYearsBucket = Math.round(age.time().moment() /
-                (double) Config.config().barrels().agingYearTicks());
-        String material = ingredients + "|" + cookSecondsBucket + "|" + ageYearsBucket
-                + "|" + age.barrelType().key();
+        // Brand consistency follows ingredients and cask, with TBP quality
+        // enforcing good workmanship. Minor extraction/aging timing errors
+        // must not make an otherwise good batch impossible to label.
+        String material = ingredients + "|" + age.barrelType().key();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return Optional.of(HexFormat.of().formatHex(digest.digest(material.getBytes(StandardCharsets.UTF_8))));
