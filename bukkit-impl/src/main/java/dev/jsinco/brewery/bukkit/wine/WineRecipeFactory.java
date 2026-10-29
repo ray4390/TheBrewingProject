@@ -3,6 +3,7 @@ package dev.jsinco.brewery.bukkit.wine;
 import dev.jsinco.brewery.api.brew.BrewQuality;
 import dev.jsinco.brewery.api.brew.BrewingStep;
 import dev.jsinco.brewery.api.breweries.BarrelType;
+import dev.jsinco.brewery.api.breweries.BarrelTypes;
 import dev.jsinco.brewery.api.ingredient.Ingredient;
 import dev.jsinco.brewery.api.recipe.QualityData;
 import dev.jsinco.brewery.api.recipe.Recipe;
@@ -64,11 +65,10 @@ public final class WineRecipeFactory {
         if (base == null) {
             return Optional.empty();
         }
-        BarrelType barrelType = base.getSteps().stream()
-                .filter(BrewingStep.Age.class::isInstance)
-                .map(BrewingStep.Age.class::cast)
-                .map(BrewingStep.Age::barrelType)
-                .findFirst().orElse(null);
+        // The live RayCraft 'wine' recipe is custom (7m, one distillation run,
+        // four aging years in spruce). That restriction belongs exclusively to
+        // the legacy recipe; new undistilled fruit wines allow any TBP barrel.
+        BarrelType barrelType = BarrelTypes.ANY;
         if (barrelType == null) {
             return Optional.empty();
         }
