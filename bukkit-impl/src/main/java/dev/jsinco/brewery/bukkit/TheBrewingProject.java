@@ -114,6 +114,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import dev.jsinco.brewery.bukkit.wine.WineryRegistry;
 import org.bukkit.ServerTickManager;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginManager;
@@ -162,6 +163,7 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
     private BreweryTranslator translator;
     private boolean successfulLoad = false;
     private final AtomicLong recipeLoadGeneration = new AtomicLong();
+    private WineryRegistry wineryRegistry;
     private final BukkitContext metrics = new BukkitContext.Factory(
             this,
             "2ee682246967303e517be0d593fe7a01"
@@ -172,6 +174,10 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
 
     public static TheBrewingProject getInstance() {
         return TheBrewingProject.instance;
+    }
+
+    public WineryRegistry getWineryRegistry() {
+        return wineryRegistry;
     }
 
     public void initialize() {
@@ -247,6 +253,8 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
         saveResources();
         Config.config().load(true);
         Config.postValidate();
+        // Winery registry is not reconstructed during reload; the server administrator
+        // must restart for a rollout-gate change. Ordinary brewing reload remains safe.
         DrunkenModifierSection.modifiers().load(true);
         EventSection.events().load(true);
         DrunkenModifierSection.postValidate();
@@ -364,6 +372,15 @@ public class TheBrewingProject extends JavaPlugin implements TheBrewingProjectAp
                     + PaperCompatibility.TARGET_MINECRAFT_VERSION + ". Brewing will continue, but production deployment is not recommended.");
         }
         loadStructures();
+        if (Config.config().raycraftWinemakingEnabled()) {
+            try {
+                wineryRegistry = new WineryRegistry(this);
+            } catch (IOException ex) {
+                Logger.logErr("Winery registry cannot be loaded; winery commands and registered brands disabled.");
+                Logger.logErr(ex);
+                wineryRegistry = null;
+            }
+        }
         integrationManager.enableIntegrations();
         this.database = new SqlDatabase(DatabaseDriver.SQLITE);
         try {
