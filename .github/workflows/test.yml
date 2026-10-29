@@ -10,6 +10,11 @@ on:
       - 'raycraft/**'
   workflow_dispatch:
 
+# Do not waste runners on superseded draft PR commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
