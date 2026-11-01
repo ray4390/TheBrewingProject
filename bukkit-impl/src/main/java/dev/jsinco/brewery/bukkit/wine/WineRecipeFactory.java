@@ -108,11 +108,28 @@ public final class WineRecipeFactory {
                         DrunkenModifierSection.modifiers().modifier("toxins"), (double) plan.toxins(tier)
                 )).build();
 
+        // Tell players what the drink really does, not vague flavor words.
+        // The benefits are capped and share a cooldown; no ingredient formula
+        // or brand trade secret is exposed in this lore.
+        List<String> lore = new java.util.ArrayList<>();
+        lore.add("<gray>Alcohol +" + plan.alcohol() + " | Toxins +" + plan.toxins(tier) + "</gray>");
+        if (plan.foodPoints(tier) > 0) {
+            lore.add("<gray>Food +" + plan.foodPoints(tier) + "</gray>");
+        }
+        if (plan.healingHalfHearts(tier) > 0) {
+            lore.add("<gray>Heals half a heart</gray>");
+        }
+        if (plan.speedSeconds(tier) > 0) {
+            lore.add("<gray>Speed I for " + plan.speedSeconds(tier) + "s</gray>");
+        }
+        if (plan.foodPoints(tier) > 0 || plan.healingHalfHearts(tier) > 0 || plan.speedSeconds(tier) > 0) {
+            lore.add("<dark_gray>Extra benefits: one per 2 minutes</dark_gray>");
+        }
         return new BukkitRecipeResult.Builder()
                 .name(plan.style())
                 .color(Color.fromRGB(0x75213A))
                 .recipeEffects(effects)
-                .lore(List.of("<gray>RayCraft berry wine</gray>"))
+                .lore(lore)
                 .wineBenefit(new WineBenefit(
                         plan.foodPoints(tier), plan.healingHalfHearts(tier), plan.speedSeconds(tier)))
                 .build();
