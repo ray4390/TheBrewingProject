@@ -133,6 +133,9 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
     private String recipeOf(ItemStack item) {
         if (item == null || item.getType() != Material.POTION) return null;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+        // Never accept a signed, revoked or tampered winery bottle as generic
+        // stock. Signed labels are verified separately before recipeOf().
+        if (pdc.has(TheBrewingProject.key("raycraft_winery"))) return null;
         String raw = pdc.get(BREW_TAG, PersistentDataType.STRING);
         if (raw == null) return null;
         String id = raw.startsWith("brewery:") ? raw.substring(8) : raw;
