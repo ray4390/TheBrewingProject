@@ -40,6 +40,10 @@ public class Config extends OkaeriConfig implements Configuration {
     @CustomKey("allow-unregistered-ingredients")
     private boolean allowUnregisteredIngredients = false;
 
+    @Comment("Enable RayCraft berry-wine variations in normal TBP cauldrons and barrels. Disabled by default until qualified.")
+    @CustomKey("raycraft-winemaking-enabled")
+    private boolean raycraftWinemakingEnabled = false;
+
     @Comment("Whether items should be consumed when in creative mode when using it on tbp structures")
     @CustomKey("consume-items-in-creative")
     private boolean consumeItemsInCreative = false;
@@ -189,6 +193,10 @@ public class Config extends OkaeriConfig implements Configuration {
 
     public boolean allowUnregisteredIngredients() {
         return this.allowUnregisteredIngredients;
+    }
+
+    public boolean raycraftWinemakingEnabled() {
+        return this.raycraftWinemakingEnabled;
     }
 
     public boolean consumeItemsInCreative() {

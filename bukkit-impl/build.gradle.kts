@@ -31,6 +31,7 @@ repositories {
     maven("https://repo.codemc.org/repository/maven-public/")
     maven("https://repo.glaremasters.me/repository/towny/")
     maven("https://repo.minebench.de/")
+    maven("https://api.modrinth.com/maven")
     maven("https://repo.william278.net/releases")
     maven("https://repo.codemc.io/repository/maven-public/")
     maven("https://repo.momirealms.net/releases/")
@@ -86,6 +87,8 @@ dependencies {
         exclude("it.unimi.dsi", "fastutil")
     }
     compileOnly(libs.quickshop.hikari)
+    // Exact ChestShop 3.13-pre-1 build deployed on RayCraft. Never shade this jar.
+    compileOnly("maven.modrinth:QI2CAnAl:YNfN5x9T") { isTransitive = false }
     compileOnly(libs.mythic)
     compileOnly(libs.mythic.crucible)
     compileOnly(libs.griefdefender)
@@ -102,6 +105,8 @@ dependencies {
     testImplementation(testFixtures(project(":api")))
     testImplementation(libs.adventure.nbt)
     testImplementation(libs.mockbukkit)
+    // Test the real ChestShop transaction event types without shading ChestShop into TBP.
+    testImplementation("maven.modrinth:QI2CAnAl:YNfN5x9T") { isTransitive = false }
     // MockBukkit does not yet publish a v26.3 artifact. Compile tests against
     // the qualified 26.3 API, but run MockBukkit tests on its supported 26.2 API.
     // Real Paper 26.3 qualification is enforced by scripts/test-paper-26.3.py.
@@ -321,6 +326,7 @@ bukkit {
         "MythicMobs",
         "MiniPlaceholders",
         "QuickShop",
+        "ChestShop",
         "GriefDefender",
         "GSit",
         "BodyHealth"

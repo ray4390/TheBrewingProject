@@ -6,6 +6,7 @@ import dev.jsinco.brewery.api.integration.IntegrationType;
 import dev.jsinco.brewery.api.util.Logger;
 import dev.jsinco.brewery.bukkit.api.integration.IntegrationTypes;
 import dev.jsinco.brewery.bukkit.integration.chest_shop.QuickShopHikariIntegration;
+import dev.jsinco.brewery.bukkit.integration.chest_shop.ChestShopNativeIntegration;
 import dev.jsinco.brewery.bukkit.integration.event.BodyHealthIntegration;
 import dev.jsinco.brewery.bukkit.integration.event.GSitIntegration;
 import dev.jsinco.brewery.bukkit.integration.item.CraftEngineIntegration;
@@ -55,6 +56,7 @@ public class IntegrationManagerImpl implements IntegrationManager {
         register(IntegrationTypes.PLACEHOLDER, "me.clip.placeholderapi.expansion.PlaceholderExpansion", () -> new PlaceholderApiIntegration());
         register(IntegrationTypes.PLACEHOLDER, "io.github.miniplaceholders.api.utils.TagsUtils", () -> new MiniPlaceholdersIntegration());
         register(IntegrationTypes.CHEST_SHOP, "com.ghostchu.quickshop.api.event.general.ShopItemMatchEvent", () -> new QuickShopHikariIntegration());
+        register(IntegrationTypes.CHEST_SHOP, "com.Acrobot.ChestShop.Events.PreTransactionEvent", () -> new ChestShopNativeIntegration());
         register(IntegrationTypes.EVENT, "dev.geco.gsit.api.GSitAPI", () -> new GSitIntegration());
         register(IntegrationTypes.EVENT, "bodyhealth.api.BodyHealthAPI", () -> new BodyHealthIntegration());
     }

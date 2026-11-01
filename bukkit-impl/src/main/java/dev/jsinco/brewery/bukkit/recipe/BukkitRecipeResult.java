@@ -12,6 +12,7 @@ import dev.jsinco.brewery.bukkit.TheBrewingProject;
 import dev.jsinco.brewery.bukkit.api.integration.IntegrationTypes;
 import dev.jsinco.brewery.bukkit.api.integration.ItemIntegration;
 import dev.jsinco.brewery.bukkit.brew.BrewAdapterAccess;
+import dev.jsinco.brewery.bukkit.wine.WineBenefit;
 import dev.jsinco.brewery.bukkit.ingredient.BukkitIngredientManager;
 import dev.jsinco.brewery.bukkit.ingredient.UncheckedIngredientImpl;
 import dev.jsinco.brewery.bukkit.util.BukkitMessageUtil;
@@ -68,8 +69,9 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
     private final RecipeEffectsImpl recipeEffects;
     private final Color color;
     private final boolean appendBrewInfoLore;
+    private final @Nullable WineBenefit wineBenefit;
 
-    private BukkitRecipeResult(boolean glint, int customModelData, @Nullable NamespacedKey itemModel, RecipeEffectsImpl recipeEffects, String name, List<String> lore, Color color, boolean appendBrewInfoLore, @Nullable BreweryKey customId) {
+    private BukkitRecipeResult(boolean glint, int customModelData, @Nullable NamespacedKey itemModel, RecipeEffectsImpl recipeEffects, String name, List<String> lore, Color color, boolean appendBrewInfoLore, @Nullable BreweryKey customId, @Nullable WineBenefit wineBenefit) {
         this.glint = glint;
         this.customModelData = customModelData;
         this.itemModel = itemModel;
@@ -78,6 +80,7 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
         this.lore = lore;
         this.color = color;
         this.appendBrewInfoLore = appendBrewInfoLore;
+        this.wineBenefit = wineBenefit;
         this.customId = customId == null ? null : new UncheckedIngredientImpl(customId);
     }
 
@@ -144,6 +147,9 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
             itemStack.setData(DataComponentTypes.ITEM_MODEL, itemModel());
         }
         recipeEffects().applyTo(itemStack);
+        if (wineBenefit != null) {
+            wineBenefit.applyTo(itemStack);
+        }
         itemStack.setData(DataComponentTypes.POTION_CONTENTS, PotionContents.potionContents()
                 .customColor(color)
         );
@@ -307,6 +313,7 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
         private RecipeEffectsImpl recipeEffects;
         private Color color = Color.BLUE;
         private boolean appendBrewInfoLore = true;
+        private WineBenefit wineBenefit;
         private BreweryKey customId;
 
         public Builder glint(boolean glint) {
@@ -326,6 +333,11 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
                     throw new IllegalArgumentException("Illegal namespaced key");
                 }
             }
+            return this;
+        }
+
+        public Builder wineBenefit(@Nullable WineBenefit benefit) {
+            this.wineBenefit = benefit;
             return this;
         }
 
@@ -366,7 +378,7 @@ public class BukkitRecipeResult implements RecipeResult<ItemStack> {
             if (lore == null) {
                 lore = List.of();
             }
-            return new BukkitRecipeResult(glint, customModelData, itemModel, recipeEffects, name, lore, color, appendBrewInfoLore, customId);
+            return new BukkitRecipeResult(glint, customModelData, itemModel, recipeEffects, name, lore, color, appendBrewInfoLore, customId, wineBenefit);
         }
 
         public Builder name(String name) {

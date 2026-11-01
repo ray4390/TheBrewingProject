@@ -6,12 +6,14 @@ import dev.jsinco.brewery.api.recipe.RecipeMatcher;
 import dev.jsinco.brewery.api.recipe.RecipeMatcherResult;
 import dev.jsinco.brewery.api.recipe.RecipeRegistry;
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
+import dev.jsinco.brewery.bukkit.wine.WineRecipeFactory;
 import dev.jsinco.brewery.recipes.BrewScoreImpl;
 import org.bukkit.inventory.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public record RecipeMatcherImpl(@Nullable Set<Recipe<ItemStack>> whitelist,
                                 boolean disallowStepVariations) implements RecipeMatcher<ItemStack> {
@@ -21,17 +23,19 @@ public record RecipeMatcherImpl(@Nullable Set<Recipe<ItemStack>> whitelist,
         RecipeRegistry<ItemStack> registry = TheBrewingProject.getInstance().getRecipeRegistry();
         return brew.variations()
                 .stream()
-                .flatMap(variation -> registry.possibleRecipes(variation)
-                        .stream()
-                        .filter(recipe -> whitelist == null || whitelist.contains(recipe))
-                        .map(recipe ->
-                                new RecipeMatcherResultImpl(
-                                        recipe,
-                                        variation,
-                                        brew,
-                                        recipe.score(variation)
-                                ))
-                )
+                .flatMap(variation -> Stream.concat(
+                        registry.possibleRecipes(variation)
+                                .stream()
+                                .filter(recipe -> whitelist == null || whitelist.contains(recipe)),
+                        whitelist == null
+                                ? WineRecipeFactory.candidate(variation, registry).stream()
+                                : Stream.<Recipe<ItemStack>>empty()
+                ).map(recipe -> new RecipeMatcherResultImpl(
+                        recipe,
+                        variation,
+                        brew,
+                        recipe.score(variation)
+                )))
                 .filter(pair -> pair.score().rawScore() > 0)
                 .max(Comparator.comparing(RecipeMatcherResult::score))
                 .orElseGet(() -> new RecipeMatcherResultImpl(
