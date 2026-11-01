@@ -72,11 +72,11 @@ public final class WineryCommand {
                     // Always write the labeled bottle back to the exact main-hand slot.
                     org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
                     org.bukkit.inventory.ItemStack toLabel = held.clone();
-                    String result = registry.bottle(player, arg, toLabel);
-                    if (result.startsWith("Branded this bottle")) {
+                    String bottleMessage = registry.bottle(player, arg, toLabel);
+                    if (bottleMessage.startsWith("Branded this bottle")) {
                         player.getInventory().setItemInMainHand(toLabel);
                     }
-                    yield result;
+                    yield bottleMessage;
                 }
                 case "code" -> arg.isBlank() ? "Usage: /winery code <registered name>"
                         : registry.shopCode(player, arg);
