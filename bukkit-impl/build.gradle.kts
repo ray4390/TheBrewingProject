@@ -105,6 +105,8 @@ dependencies {
     testImplementation(testFixtures(project(":api")))
     testImplementation(libs.adventure.nbt)
     testImplementation(libs.mockbukkit)
+    // Test the real ChestShop transaction event types without shading ChestShop into TBP.
+    testImplementation("maven.modrinth:QI2CAnAl:YNfN5x9T") { isTransitive = false }
     // MockBukkit does not yet publish a v26.3 artifact. Compile tests against
     // the qualified 26.3 API, but run MockBukkit tests on its supported 26.2 API.
     // Real Paper 26.3 qualification is enforced by scripts/test-paper-26.3.py.
