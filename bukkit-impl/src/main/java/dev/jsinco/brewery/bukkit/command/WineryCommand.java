@@ -48,6 +48,8 @@ public final class WineryCommand {
             String result = switch (cmd) {
                 case "info" -> registry.info(player);
                 case "members" -> registry.members(player);
+                case "brands" -> registry.brands(player);
+                case "rename" -> arg.isBlank() ? "Usage: /winery rename <new name>" : registry.rename(player, arg);
                 case "create" -> arg.isBlank() ? "Usage: /winery create <name>" : registry.create(player, arg);
                 case "accept" -> registry.accept(player);
                 case "invite" -> {
@@ -78,7 +80,7 @@ public final class WineryCommand {
                 };
                 case "code" -> arg.isBlank() ? "Usage: /winery code <registered name>"
                         : registry.shopCode(player, arg);
-                case "help" -> "Commands: create, info, members, invite, accept, kick, leave, transfer, color, register, bottle, code";
+                case "help" -> "Commands: create, rename, info, members, brands, invite, accept, kick, leave, transfer, color, register, bottle, code";
                 default -> "Unknown subcommand. Use /winery help.";
             };
             player.sendMessage(Component.text(result, NamedTextColor.GRAY));
