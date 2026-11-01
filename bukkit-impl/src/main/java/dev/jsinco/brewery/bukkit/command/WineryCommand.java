@@ -77,7 +77,7 @@ public final class WineryCommand {
                         player.getInventory().setItemInMainHand(toLabel);
                     }
                     yield result;
-                };
+                }
                 case "code" -> arg.isBlank() ? "Usage: /winery code <registered name>"
                         : registry.shopCode(player, arg);
                 case "help" -> "Commands: create, rename, info, members, brands, invite, accept, kick, leave, transfer, color, register, bottle, code";
