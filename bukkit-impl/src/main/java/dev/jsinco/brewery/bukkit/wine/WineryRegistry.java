@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
@@ -108,6 +110,15 @@ public final class WineryRegistry {
         File temp = new File(parent, "wineries.yml.pending");
         if (Files.isSymbolicLink(temp.toPath())) throw new IOException("Refusing symlink staging file");
         next.save(temp);
+        // Winery HMAC key is embedded in this file. Restrict the staging file
+        // before it becomes visible at the final path. On POSIX systems, never
+        // silently accept permissions that expose the signing secret.
+        try {
+            Files.setPosixFilePermissions(temp.toPath(), EnumSet.of(
+                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+        } catch (UnsupportedOperationException ignored) {
+            // Non-POSIX test and development systems may not expose POSIX ACLs.
+        }
         try {
             Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (AtomicMoveNotSupportedException ex) {
