@@ -52,6 +52,7 @@ class WineChestShopTransactionTest {
         Field winery = TheBrewingProject.class.getDeclaredField("wineryRegistry");
         winery.setAccessible(true);
         winery.set(plugin, registry);
+        server.addSimpleWorld("wine-chestshop-qa");
         owner = server.addPlayer();
         registry.create(owner, "Seaside Cellars");
 
