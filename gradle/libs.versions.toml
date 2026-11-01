@@ -1,5 +1,5 @@
 [versions]
-paper = "26.3.build.134-beta"
+paper = "26.3.build.223-stable"
 paper-test = "26.2.build.126-stable"
 
 # libraries
