@@ -169,6 +169,40 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
         return String.format(Locale.ROOT, "B_%08X", crc.getValue());
     }
 
+    /**
+     * Optional sign suffixes: -G = good or excellent, -E = excellent only.
+     * They are quality requirements, not new drink types or player modes.
+     * Base legacy B-codes and winery W-codes keep their original meaning.
+     */
+    private static String baseCode(String raw) {
+        if (raw == null) return "";
+        String code = raw.trim();
+        String upper = code.toUpperCase(Locale.ROOT);
+        return upper.endsWith("-G") || upper.endsWith("-E")
+                ? code.substring(0, code.length() - 2)
+                : code;
+    }
+
+    private static boolean hasQualitySuffix(String raw) {
+        if (raw == null) return false;
+        String upper = raw.trim().toUpperCase(Locale.ROOT);
+        return upper.endsWith("-G") || upper.endsWith("-E");
+    }
+
+    private static double qualityMinimum(String raw) {
+        String upper = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT);
+        if (upper.endsWith("-E")) return 0.8D;
+        if (upper.endsWith("-G")) return 0.6D;
+        return 0.0D;
+    }
+
+    private static boolean sufficientQuality(ItemStack item, double minimum) {
+        if (minimum <= 0D) return true;
+        if (item == null || item.getType() != Material.POTION) return false;
+        Double score = item.getPersistentDataContainer().get(BREW_SCORE, PersistentDataType.DOUBLE);
+        return score != null && score >= minimum;
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onStringQuery(ItemStringQueryEvent event) {
         WineryRegistry registry = TheBrewingProject.getInstance().getWineryRegistry();
@@ -188,23 +222,27 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
     public void onItemParse(ItemParseEvent event) {
         if (event.hasItem()) return;
         WineryRegistry registry = TheBrewingProject.getInstance().getWineryRegistry();
-        if (registry != null && event.getItemString() != null && registry.isShopCode(event.getItemString().trim())) {
+        String raw = event.getItemString();
+        String base = baseCode(raw);
+        if (registry != null && registry.isShopCode(base.toUpperCase(Locale.ROOT))) {
             event.setItem(descriptor("wine"));
             return;
         }
-        if (legacyPresent) return;
-        String id = codeToRecipe.get(event.getItemString().trim().toLowerCase(Locale.ROOT));
+        if (legacyPresent && !hasQualitySuffix(raw)) return;
+        String id = codeToRecipe.get(base.toLowerCase(Locale.ROOT));
         if (id != null) event.setItem(descriptor(id));
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPreTransaction(PreTransactionEvent event) {
         String itemLine = ChestShopSign.getItem(event.getSign());
-        String id = codeToRecipe.get(itemLine.trim().toLowerCase(Locale.ROOT));
+        String base = baseCode(itemLine);
+        String id = codeToRecipe.get(base.toLowerCase(Locale.ROOT));
         WineryRegistry registry = TheBrewingProject.getInstance().getWineryRegistry();
-        String brandCode = registry != null && registry.isShopCode(itemLine.trim())
-                ? itemLine.trim().toUpperCase(Locale.ROOT) : null;
-        if (brandCode == null && (id == null || legacyPresent)) return;
+        String brandCode = registry != null && registry.isShopCode(base.toUpperCase(Locale.ROOT))
+                ? base.toUpperCase(Locale.ROOT) : null;
+        if (brandCode == null && (id == null || (legacyPresent && !hasQualitySuffix(itemLine)))) return;
+        double minimumQuality = qualityMinimum(itemLine);
         // Never permit recipe-code shops to act as creative/unlimited admin shops.
         if (ChestShopSign.isAdminShop(event.getSign())) {
             event.setCancelled(PreTransactionEvent.TransactionOutcome.INVALID_SHOP);
@@ -230,6 +268,7 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
         int remaining = requested;
         for (ItemStack item : source.getContents()) {
             if (remaining == 0) break;
+            if (!sufficientQuality(item, minimumQuality)) continue;
             if (brandCode != null) {
                 if (!brandCode.equals(registry.verifiedShopCode(item).orElse(null))) continue;
             } else if (!id.equals(recipeOf(item))
@@ -271,7 +310,7 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void protectBrandedStock(PreTransactionEvent event) {
         String raw = ChestShopSign.getItem(event.getSign()).trim();
-        if (!codeToRecipe.containsKey(raw.toLowerCase(Locale.ROOT))) return;
+        if (!codeToRecipe.containsKey(baseCode(raw).toLowerCase(Locale.ROOT))) return;
         NamespacedKey wineryTag = TheBrewingProject.key("raycraft_winery");
         for (ItemStack item : event.getStock()) {
             if (item != null && item.getType() == Material.POTION
@@ -291,19 +330,22 @@ public final class ChestShopNativeIntegration implements ChestShopIntegration, L
         for (Sign sign : uBlock.findConnectedShopSigns(holder)) {
             if (ChestShopSign.isAdminShop(sign)) continue;
             String raw = ChestShopSign.getItem(sign).trim();
-            String id = codeToRecipe.get(raw.toLowerCase(Locale.ROOT));
+            String base = baseCode(raw);
+            String id = codeToRecipe.get(base.toLowerCase(Locale.ROOT));
             WineryRegistry registry = TheBrewingProject.getInstance().getWineryRegistry();
-            String brandCode = registry != null && registry.isShopCode(raw)
-                    ? raw.toUpperCase(Locale.ROOT) : null;
-            if (brandCode == null && (id == null || legacyPresent)) continue;
+            String brandCode = registry != null && registry.isShopCode(base.toUpperCase(Locale.ROOT))
+                    ? base.toUpperCase(Locale.ROOT) : null;
+            if (brandCode == null && (id == null || (legacyPresent && !hasQualitySuffix(raw)))) continue;
+            double minimumQuality = qualityMinimum(raw);
             int quantity;
             try { quantity = ChestShopSign.getQuantity(sign); }
             catch (IllegalArgumentException ignored) { continue; }
             int count = 0;
             for (ItemStack item : inventory.getStorageContents())
-                if (brandCode != null
+                if (item != null && sufficientQuality(item, minimumQuality)
+                        && (brandCode != null
                         ? brandCode.equals(registry.verifiedShopCode(item).orElse(null))
-                        : id.equals(recipeOf(item)) && (registry == null || registry.verifiedShopCode(item).isEmpty()))
+                        : id.equals(recipeOf(item)) && (registry == null || registry.verifiedShopCode(item).isEmpty())))
                     count += item.getAmount();
             String line = "Q " + quantity + " : C " + count;
             if (!line.equals(ChestShopSign.getQuantityLine(sign))) {
