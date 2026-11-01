@@ -147,6 +147,60 @@ class WineChestShopTransactionTest {
         assertTrue(trade.isCancelled(), "Even invalid/revoked branded bottles cannot enter generic stock");
     }
 
+    @Test void excellentOnlyBrandShopFiltersOutOrdinaryGoodQualityBottles() throws Exception {
+        ItemStack excellent = wine();
+        assertTrue(registry.register(owner, "Grand Reserve", excellent).startsWith("Registered"));
+        assertTrue(registry.bottle(owner, "Grand Reserve", excellent).startsWith("Branded"));
+        String brand = registry.verifiedShopCode(excellent).orElseThrow();
+
+        ItemStack merelyGood = wine();
+        merelyGood.editPersistentDataContainer(pdc ->
+                pdc.set(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE, 0.65D));
+        assertTrue(registry.bottle(owner, "Grand Reserve", merelyGood).startsWith("Branded"));
+        Inventory stock = Bukkit.createInventory(null, 27);
+        stock.setItem(0, merelyGood);
+        stock.setItem(1, excellent);
+
+        PreTransactionEvent excellentOnly = buy(sign(brand + "-E"), stock);
+        integration.onPreTransaction(excellentOnly);
+        assertFalse(excellentOnly.isCancelled());
+        assertEquals(1, excellentOnly.getStock().length);
+        assertEquals(0.85D, excellentOnly.getStock()[0].getPersistentDataContainer()
+                .get(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE));
+        assertEquals(brand, registry.verifiedShopCode(excellentOnly.getStock()[0]).orElseThrow());
+
+        PreTransactionEvent goodOrBetter = buy(sign(brand + "-G"), stock);
+        integration.onPreTransaction(goodOrBetter);
+        assertFalse(goodOrBetter.isCancelled());
+        assertTrue(goodOrBetter.getStock()[0].getPersistentDataContainer().get(
+                BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE) >= 0.6D);
+    }
+
+    @Test void ordinaryWineSupportsMinimumQualityAndPlayerToShopSales() {
+        ItemStack good = wine();
+        good.editPersistentDataContainer(pdc ->
+                pdc.set(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE, 0.65D));
+        ItemStack excellent = wine();
+        Inventory stock = Bukkit.createInventory(null, 27);
+        stock.setItem(0, good);
+        stock.setItem(1, excellent);
+
+        PreTransactionEvent excellentOnly = buy(sign("B_wine-E"), stock);
+        integration.onPreTransaction(excellentOnly);
+        assertFalse(excellentOnly.isCancelled());
+        assertEquals(0.85D, excellentOnly.getStock()[0].getPersistentDataContainer()
+                .get(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE));
+
+        owner.getInventory().setItem(0, good);
+        PreTransactionEvent sale = new PreTransactionEvent(stock, owner.getInventory(),
+                new ItemStack[]{new ItemStack(Material.POTION)}, BigDecimal.TEN,
+                owner, null, sign("B_wine-G"), TransactionEvent.TransactionType.SELL);
+        integration.onPreTransaction(sale);
+        assertFalse(sale.isCancelled(), "A player must be able to sell a good wine back to a buying shop");
+        assertEquals(0.65D, sale.getStock()[0].getPersistentDataContainer()
+                .get(BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE));
+    }
+
     @Test void realOrdinaryWineRemainsTradableUnderLegacyCode() {
         ItemStack ordinary = wine();
         Inventory stock = Bukkit.createInventory(null, 27);
