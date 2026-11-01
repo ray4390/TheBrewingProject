@@ -32,9 +32,9 @@ import zipfile
 
 
 PAPER_VERSION = "26.3"
-PAPER_BUILD = 134
-PAPER_COMMIT = "643a11a"
-PAPER_API_VERSION = "26.3.build.134-beta"
+PAPER_BUILD = 223
+PAPER_COMMIT = "e415f5e"
+PAPER_API_VERSION = "26.3.build.223-stable"
 PAPER_BUILDS_API = f"https://fill.papermc.io/v3/projects/paper/versions/{PAPER_VERSION}/builds"
 PAPER_USER_AGENT = "RayCraft-TBP-integration-test/2 (https://github.com/ray4390/TheBrewingProject)"
 LEGACY_BREW_JSON = '[{"type":"cook","brew_time":20,"cauldron_type":"brewery:lava","ingredients":{"minecraft:wheat":1}},{"type":"distill","runs":3},{"type":"age","age":20,"barrel_type":"brewery:acacia"}]'
@@ -89,12 +89,12 @@ def resolve_paper_download() -> tuple[str, str, str]:
 
     matches = [build for build in builds if build.get("id") == PAPER_BUILD]
     if len(matches) != 1:
-        raise RuntimeError(f"Fill did not return exactly one Paper {PAPER_VERSION} build {PAPER_BUILD}: {len(matches)} matches")
+        raise RuntimeError(f"Fill did not return exactly one production Paper {PAPER_VERSION} build {PAPER_BUILD}: {len(matches)} matches")
 
     build = matches[0]
-    if str(build.get("channel", "")).upper() != "BETA":
+    if str(build.get("channel", "")).upper() != "STABLE":
         raise RuntimeError(
-            f"Paper {PAPER_VERSION} build {PAPER_BUILD} is no longer reported as BETA: {build.get('channel')!r}"
+            f"Paper {PAPER_VERSION} build {PAPER_BUILD} is not STABLE: {build.get('channel')!r}"
         )
 
     download = build.get("downloads", {}).get("server:default")
