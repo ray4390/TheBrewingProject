@@ -64,8 +64,18 @@ public final class WineryCommand {
                 case "color" -> registry.color(player, arg);
                 case "register" -> arg.isBlank() ? "Usage: /winery register <wine name>"
                         : registry.register(player, arg, player.getInventory().getItemInMainHand());
-                case "bottle" -> arg.isBlank() ? "Usage: /winery bottle <registered name>"
-                        : registry.bottle(player, arg, player.getInventory().getItemInMainHand());
+                case "bottle" -> {
+                    if (arg.isBlank()) yield "Usage: /winery bottle <registered name>";
+                    // Inventory implementations may return a defensive ItemStack copy.
+                    // Always write the labeled bottle back to the exact main-hand slot.
+                    org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
+                    org.bukkit.inventory.ItemStack toLabel = held.clone();
+                    String result = registry.bottle(player, arg, toLabel);
+                    if (result.startsWith("Branded this bottle")) {
+                        player.getInventory().setItemInMainHand(toLabel);
+                    }
+                    yield result;
+                };
                 case "code" -> arg.isBlank() ? "Usage: /winery code <registered name>"
                         : registry.shopCode(player, arg);
                 case "help" -> "Commands: create, info, members, invite, accept, kick, leave, transfer, color, register, bottle, code";
