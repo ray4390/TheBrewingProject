@@ -183,6 +183,35 @@ public final class WineryRegistry {
                 + (isOwner(id, player.getUniqueId()) ? " • Owner" : " • Member");
     }
 
+    /** List intentionally registered labels, never the actual formula or quantities. */
+    public synchronized String brands(Player player) {
+        String id = wineryFor(player.getUniqueId());
+        if (id == null) return "You do not belong to a winery.";
+        String root = "wineries." + id + ".brands";
+        var section = state.getConfigurationSection(root);
+        if (section == null || section.getKeys(false).isEmpty()) {
+            return "No signature wines registered. Hold a finished wine and use /winery register <name>.";
+        }
+        List<String> labels = new ArrayList<>();
+        for (String slug : section.getKeys(false)) {
+            labels.add(state.getString(root + "." + slug + ".name", slug) + " ("
+                    + state.getString(root + "." + slug + ".shopcode", "no code") + ")");
+        }
+        labels.sort(String.CASE_INSENSITIVE_ORDER);
+        return "Registered wines: " + String.join(", ", labels);
+    }
+
+    /** Public display-name changes do not invalidate a winery's signed wine codes. */
+    public synchronized String rename(Player actor, String proposed) throws IOException {
+        String id = wineryFor(actor.getUniqueId());
+        if (id == null || !isOwner(id, actor.getUniqueId())) return "Only the winery owner can rename it.";
+        String name = normalized(proposed, 3, 24);
+        String otherId = byName(name);
+        if (otherId != null && !otherId.equals(id)) return "Another winery already uses that name.";
+        mutate(cfg -> cfg.set("wineries." + id + ".name", name));
+        return "Winery renamed to " + name + ". Existing signed bottles remain valid.";
+    }
+
     public synchronized String members(Player player) {
         String id = wineryFor(player.getUniqueId());
         if (id == null) return "You are not in a winery.";
