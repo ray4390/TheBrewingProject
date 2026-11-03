@@ -5,7 +5,6 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,13 +24,27 @@ public final class CnKItemIntegration implements ItemIntegration {
     @Override public boolean isIngredient(String id) { return GRAPES.equals(id); }
     @Override public CompletableFuture<Void> initialized() { return CompletableFuture.completedFuture(null); }
 
+    /**
+     * C&K represents nearly every crop/food/seed as poisonous potatoes with
+     * distinct item_model keys. Recognize ALL C&K models as namespaced
+     * ingredients so unrelated crops cannot accidentally score as the vanilla
+     * poisonous_potato ingredient (e.g. green absinthe). Only grapes are
+     * currently enabled in RayCraft wine formulas, and the optional integration
+     * remains registered if C&K is removed.
+     */
+    public static @Nullable String idFromModel(String model) {
+        if (model == null || !model.startsWith("cnk:")) return null;
+        String id = model.substring("cnk:".length());
+        if (id.isEmpty() || id.length() > 80 || id.contains("..") ||
+            !id.matches("[a-z0-9_./-]+")) return null;
+        return id;
+    }
+
     @Override
     public @Nullable String getItemId(ItemStack stack) {
-        if (stack.getType() != Material.POISONOUS_POTATO) return null;
         Key model = stack.getData(DataComponentTypes.ITEM_MODEL);
-        // Item names are mutable and are never an identity check. Model keys
-        // are supplied by C&K's loot tables and are not an anvil property.
-        return model != null && "cnk:grapes".equals(model.asString()) ? GRAPES : null;
+        // Namespaced model identity, not material or mutable display name.
+        return model == null ? null : idFromModel(model.asString());
     }
 
     @Override
