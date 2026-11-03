@@ -44,8 +44,8 @@ class CnKItemIntegrationTest {
             var integration = new CnKItemIntegration();
             for (String id : new String[]{"grapes", "tomato", "corn", "rice", "chili_pepper"}) {
                 ItemStack original = Bukkit.getItemFactory().createItemStack(
-                    "minecraft:poisonous_potato[minecraft:item_model=\\"cnk:" + id + "\\"," +
-                    "minecraft:custom_data={cnk:{ingredient:{type:\\"" + id + "\\"}}}]");
+                    "minecraft:poisonous_potato[minecraft:item_model=\"cnk:" + id + "\"," +
+                    "minecraft:custom_data={cnk:{ingredient:{type:\"" + id + "\"}}}]");
                 assertEquals(id, integration.getItemId(original));
                 assertTrue(integration.isIngredient(id));
                 ItemStack roundTrip = integration.createItem(id).orElseThrow();
