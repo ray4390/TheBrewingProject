@@ -1,6 +1,12 @@
 package dev.jsinco.brewery.bukkit.integration.item;
 
 import dev.jsinco.brewery.bukkit.TheBrewingProject;
+import dev.jsinco.brewery.api.brew.Brew;
+import dev.jsinco.brewery.brew.BrewImpl;
+import dev.jsinco.brewery.bukkit.brew.BrewAdapterAccess;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import dev.jsinco.brewery.bukkit.ingredient.BukkitIngredientManager;
 import dev.jsinco.brewery.bukkit.recipe.BukkitRecipeResultReader;
 import dev.jsinco.brewery.bukkit.testutil.TBPServerMock;
@@ -49,6 +55,39 @@ class CnKRecipeRuntimeTest {
             var result = recipe.score(recipe.getSteps());
             assertTrue(result.completed(), recipe.getRecipeName() + " cannot be completed");
             assertTrue(result.rawScore() > 0.5, recipe.getRecipeName() + " fails its own target");
+        }
+    }
+
+    @Test
+    void allFiveRecipesCreateAndDecodeRealTbpBottles() throws Exception {
+        try (var stream = CnKRecipeRuntimeTest.class.getResourceAsStream("/raycraft-cnk-recipes.yml")) {
+            assertNotNull(stream);
+            Files.copy(stream, temp.resolve("recipes.yml"));
+        }
+        var reader = new RecipeReader<ItemStack>(temp.toFile(),
+                new BukkitRecipeResultReader(), BukkitIngredientManager.INSTANCE);
+        var candidates = reader.readRecipes().stream().map(f -> f.join()).toList();
+        assertEquals(5, candidates.size());
+
+        var plugin = TheBrewingProject.getInstance();
+        for (var recipe : candidates) {
+            // Register a controlled opt-in recipe fixture, not a production
+            // database or mutable player inventory. Test TBP's actual matcher.
+            plugin.getRecipeRegistry().registerRecipe(recipe);
+        }
+        for (var recipe : candidates) {
+            var brew = new BrewImpl(recipe.getSteps());
+            var item = BrewAdapterAccess.toItem(brew, new Brew.State.Other());
+            assertEquals(Material.POTION, item.getType(), recipe.getRecipeName());
+            assertEquals(recipe.getRecipeName(), item.getPersistentDataContainer().get(
+                    BrewAdapterAccess.BREWERY_TAG, PersistentDataType.STRING),
+                    "Finished bottle must retain the correct new C&K recipe ID");
+            assertTrue(item.getPersistentDataContainer().getOrDefault(
+                    BrewAdapterAccess.BREWERY_SCORE, PersistentDataType.DOUBLE, 0D) > 0.5,
+                    recipe.getRecipeName() + " finished bottle should have usable quality");
+            var decoded = BrewAdapterAccess.fromItem(item).orElseThrow();
+            assertEquals(brew.getSteps(), decoded.getSteps(),
+                    recipe.getRecipeName() + " must preserve complete cook/distill/age/mix steps");
         }
     }
 }
