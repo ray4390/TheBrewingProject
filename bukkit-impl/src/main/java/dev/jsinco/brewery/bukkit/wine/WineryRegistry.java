@@ -470,8 +470,9 @@ public final class WineryRegistry {
                 || !(brew.getCompletedSteps().get(1) instanceof BrewingStep.Age age)) return Optional.empty();
         Map<String, Integer> ingredients = new TreeMap<>();
         for (Map.Entry<? extends Ingredient, Integer> entry : cook.ingredients().entrySet()) {
-            if (!(entry.getKey().toBaseIngredient() instanceof SimpleIngredient simple)) return Optional.empty();
-            ingredients.merge(simple.material().name(), entry.getValue(), Integer::sum);
+            String name = WineIngredientNames.of(entry.getKey()).orElse(null);
+            if (name == null) return Optional.empty();
+            ingredients.merge(name, entry.getValue(), Integer::sum);
         }
         if (dev.jsinco.brewery.wine.WineBalance.plan(ingredients).isEmpty()) return Optional.empty();
         // Brand consistency follows ingredients and cask, with TBP quality
