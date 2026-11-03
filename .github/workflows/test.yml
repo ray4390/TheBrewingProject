@@ -3,11 +3,10 @@ name: Build and test
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
     branches:
-      - master
-      - 'raycraft/**'
+      - main
   workflow_dispatch:
 
 # Do not waste runners on superseded draft PR commits.
