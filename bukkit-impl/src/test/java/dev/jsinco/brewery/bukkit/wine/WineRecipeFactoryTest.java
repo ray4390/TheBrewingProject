@@ -1,6 +1,10 @@
 package dev.jsinco.brewery.bukkit.wine;
 
 import dev.jsinco.brewery.api.brew.BrewingStep;
+import dev.jsinco.brewery.api.ingredient.Ingredient;
+import dev.jsinco.brewery.api.util.BreweryKey;
+import dev.jsinco.brewery.bukkit.api.ingredient.PluginIngredient;
+import dev.jsinco.brewery.bukkit.integration.item.CnKItemIntegration;
 import dev.jsinco.brewery.api.breweries.BarrelTypes;
 import dev.jsinco.brewery.api.breweries.CauldronType;
 import dev.jsinco.brewery.api.moment.PassedMoment;
@@ -72,6 +76,31 @@ class WineRecipeFactoryTest {
         assertTrue(score.completed(), "Cook + age recipe must complete naturally without another mode");
         assertTrue(score.rawScore() > 0.5, "Matched recipe should be usable");
         assertEquals("wine", WineRecipeFactory.candidateForEnabledServer(steps, registry).orElseThrow().getRecipeName());
+    }
+
+    @Test
+    void cropAndKettleGrapesCompleteNormalTbpCookAndAgeRecipe() {
+        Ingredient grapes = new PluginIngredient(
+                new BreweryKey("cnk", "grapes"), new CnKItemIntegration());
+        Ingredient honey = SimpleIngredient.from("honey_bottle").orElseThrow();
+        var cook = new CookStepImpl(
+                new PassedMoment(Math.round(370 * Config.config().cauldrons().cookingMinuteTicks() / 60D)),
+                Map.of(grapes, 7, honey, 1),
+                CauldronType.WATER);
+        List<BrewingStep> steps = List.of(cook,
+                new AgeStepImpl(new PassedMoment(
+                        26L * Config.config().barrels().agingYearTicks()), BarrelTypes.OAK));
+        var recipe = WineRecipeFactory.candidateForEnabledServer(steps, registry).orElseThrow();
+        assertEquals("wine", recipe.getRecipeName());
+        assertTrue(recipe.score(steps).completed());
+        assertTrue(recipe.score(steps).rawScore() > 0.5);
+        assertEquals("CNK_GRAPES", WineIngredientNames.of(grapes).orElseThrow());
+        // Completely unrelated model IDs must not become legal TBP wine ingredients.
+        Ingredient tomato = new PluginIngredient(
+                new BreweryKey("cnk", "tomato"), new CnKItemIntegration());
+        var invalidCook = new CookStepImpl(new PassedMoment(200),
+                Map.of(tomato, 7), CauldronType.WATER);
+        assertTrue(WineRecipeFactory.candidateForEnabledServer(List.of(invalidCook), registry).isEmpty());
     }
 
     @Test
