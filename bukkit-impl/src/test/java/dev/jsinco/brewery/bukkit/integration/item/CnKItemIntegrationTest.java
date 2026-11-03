@@ -1,6 +1,10 @@
 package dev.jsinco.brewery.bukkit.integration.item;
 
 import org.junit.jupiter.api.Test;
+import org.mockbukkit.mockbukkit.MockBukkit;
+import dev.jsinco.brewery.bukkit.testutil.TBPServerMock;
+import org.bukkit.Bukkit;
+import org.bukkit.inventory.ItemStack;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,6 +35,25 @@ class CnKItemIntegrationTest {
         assertNull(CnKItemIntegration.idFromModel("cnk:../../grapes"));
         assertNull(CnKItemIntegration.idFromModel("cnk:Invalid Id"));
         assertNull(CnKItemIntegration.idFromModel("cnk:" + "x".repeat(81)));
+    }
+
+    @Test
+    void realCustomModelStacksResolveAndSerializeByNamespace() {
+        MockBukkit.mock(new TBPServerMock());
+        try {
+            var integration = new CnKItemIntegration();
+            for (String id : new String[]{"grapes", "tomato", "corn", "rice", "chili_pepper"}) {
+                ItemStack original = Bukkit.getItemFactory().createItemStack(
+                    "minecraft:poisonous_potato[minecraft:item_model=\\"cnk:" + id + "\\"," +
+                    "minecraft:custom_data={cnk:{ingredient:{type:\\"" + id + "\\"}}}]");
+                assertEquals(id, integration.getItemId(original));
+                assertTrue(integration.isIngredient(id));
+                ItemStack roundTrip = integration.createItem(id).orElseThrow();
+                assertEquals(id, integration.getItemId(roundTrip));
+            }
+        } finally {
+            MockBukkit.unmock();
+        }
     }
 
     @Test
