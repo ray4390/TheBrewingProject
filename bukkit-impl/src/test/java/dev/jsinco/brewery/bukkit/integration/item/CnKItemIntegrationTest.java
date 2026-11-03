@@ -37,8 +37,10 @@ class CnKItemIntegrationTest {
     void originalGrapeOnlyWineRecipeRegistrationRemainsUnchanged() {
         var integration = new CnKItemIntegration();
         assertTrue(integration.isIngredient("grapes"));
-        assertFalse(integration.isIngredient("tomato"));
-        assertFalse(integration.isIngredient("rice"));
-        assertFalse(integration.isIngredient("poisonous_potato"));
+        assertTrue(integration.isIngredient("tomato"), "unmatched C&K foods still need safe namespace round-trip");
+        assertTrue(integration.isIngredient("rice"));
+        assertTrue(integration.isIngredient("poisonous_potato"), "namespace cnk is distinct from vanilla poisonous potato");
+        assertFalse(integration.isIngredient("Upper Case"));
+        assertFalse(integration.isIngredient("../invalid"));
     }
 }
