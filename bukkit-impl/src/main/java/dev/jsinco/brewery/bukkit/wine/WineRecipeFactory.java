@@ -59,10 +59,9 @@ public final class WineRecipeFactory {
 
         Map<String, Integer> items = new HashMap<>();
         for (Map.Entry<? extends Ingredient, Integer> entry : cook.ingredients().entrySet()) {
-            if (!(entry.getKey().toBaseIngredient() instanceof SimpleIngredient simple)) {
-                return Optional.empty();
-            }
-            items.merge(simple.material().name(), entry.getValue(), Integer::sum);
+            String name = WineIngredientNames.of(entry.getKey()).orElse(null);
+            if (name == null) return Optional.empty();
+            items.merge(name, entry.getValue(), Integer::sum);
         }
         WineBalance.Plan plan = WineBalance.plan(items).orElse(null);
         if (plan == null || (plan.ingredients().size() == 1 && plan.ingredients().get("SWEET_BERRIES") == 5)) {
