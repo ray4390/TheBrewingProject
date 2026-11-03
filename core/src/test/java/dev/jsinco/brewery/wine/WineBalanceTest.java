@@ -62,6 +62,25 @@ class WineBalanceTest {
     }
 
     @Test
+    void cnkGrapesMakeDistinctDeterministicWineWithoutChangingBerryFormulas() {
+        WineBalance.Plan grape = WineBalance.plan(Map.of("CNK_GRAPES", 5)).orElseThrow();
+        WineBalance.Plan berries = WineBalance.plan(Map.of("SWEET_BERRIES", 5)).orElseThrow();
+        assertEquals("Grape Wine", grape.style());
+        assertEquals("Red Wine", berries.style());
+        assertEquals(berries.cookingSeconds(), grape.cookingSeconds());
+        assertEquals(berries.agingYears(), grape.agingYears());
+        assertEquals(berries.alcohol(), grape.alcohol());
+        WineBalance.Plan honeyed = WineBalance.plan(Map.of("CNK_GRAPES", 7, "HONEY_BOTTLE", 1)).orElseThrow();
+        assertEquals("Honeyed Grape Wine", honeyed.style());
+        assertEquals(370, honeyed.cookingSeconds());
+        assertEquals(26, honeyed.agingYears());
+        assertTrue(WineBalance.plan(Map.of("CNK_GRAPES", 4)).isEmpty());
+        assertTrue(WineBalance.plan(Map.of("CNK_GRAPES", 13)).isEmpty());
+        assertTrue(WineBalance.plan(Map.of("CNK_GRAPES", 5, "SWEET_BERRIES", 5)).isEmpty());
+        assertTrue(WineBalance.plan(Map.of("CNK_GRAPES", 5, "BLAZE_POWDER", 1)).isEmpty());
+    }
+
+    @Test
     void allAcceptedWinesStayWithinSurvivalLimits() {
         for (int berries = 5; berries <= 12; berries++) {
             for (int sugar = 0; sugar <= 4; sugar++) {
