@@ -10,6 +10,7 @@ import dev.jsinco.brewery.bukkit.integration.chest_shop.ChestShopNativeIntegrati
 import dev.jsinco.brewery.bukkit.integration.event.BodyHealthIntegration;
 import dev.jsinco.brewery.bukkit.integration.event.GSitIntegration;
 import dev.jsinco.brewery.bukkit.integration.item.CraftEngineIntegration;
+import dev.jsinco.brewery.bukkit.integration.item.CnKItemIntegration;
 import dev.jsinco.brewery.bukkit.integration.item.ItemsAdderIntegration;
 import dev.jsinco.brewery.bukkit.integration.item.MmoItemsIntegration;
 import dev.jsinco.brewery.bukkit.integration.item.MythicIntegration;
@@ -47,6 +48,9 @@ public class IntegrationManagerImpl implements IntegrationManager {
         register(IntegrationTypes.STRUCTURE, "me.angeschossen.lands.api.LandsIntegration", () -> new LandsIntegration());
         register(IntegrationTypes.STRUCTURE, "com.palmergames.bukkit.towny.utils.PlayerCacheUtil", () -> new TownyIntegration());
         register(IntegrationTypes.STRUCTURE, "com.griefdefender.api.GriefDefender", () -> new GriefDefenderIntegration());
+        // Keep the C&K identity resolver registered even if the datapack is later removed;
+        // serialized TBP brews must not depend on a live item-model resource pack.
+        register(IntegrationTypes.ITEM, new CnKItemIntegration());
         register(IntegrationTypes.ITEM, "net.momirealms.craftengine.bukkit.plugin.BukkitCraftEngine", () -> new CraftEngineIntegration(resourcePackColors));
         register(IntegrationTypes.ITEM, "dev.lone.itemsadder.api.CustomStack", () -> new ItemsAdderIntegration(resourcePackColors));
         register(IntegrationTypes.ITEM, "com.nexomc.nexo.api.NexoItems", () -> new NexoIntegration(resourcePackColors));
