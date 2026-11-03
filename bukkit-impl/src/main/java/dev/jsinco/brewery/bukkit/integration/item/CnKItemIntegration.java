@@ -21,7 +21,11 @@ public final class CnKItemIntegration implements ItemIntegration {
 
     @Override public String getId() { return "cnk"; }
     @Override public boolean isEnabled() { return true; }
-    @Override public boolean isIngredient(String id) { return GRAPES.equals(id); }
+    // Preserve the C&K namespace when an unrecognized food enters a cauldron.
+    // WineBalance still permits only cnk:grapes.
+    @Override public boolean isIngredient(String id) {
+        return id != null && idFromModel("cnk:" + id) != null;
+    }
     @Override public CompletableFuture<Void> initialized() { return CompletableFuture.completedFuture(null); }
 
     /**
@@ -49,7 +53,9 @@ public final class CnKItemIntegration implements ItemIntegration {
 
     @Override
     public @Nullable Component displayName(String id) {
-        return isIngredient(id) ? Component.text("Grapes") : null;
+        if (!isIngredient(id)) return null;
+        String pretty = id.replace('_', ' ').replace('/', ' ');
+        return Component.text(Character.toUpperCase(pretty.charAt(0)) + pretty.substring(1));
     }
 
     @Override
@@ -59,8 +65,8 @@ public final class CnKItemIntegration implements ItemIntegration {
             // Used by TBP's ingredient-preview/serialization path only.
             // Keep the exact C&K custom_data identity; no renamed vanilla food.
             return Optional.of(Bukkit.getItemFactory().createItemStack(
-                "minecraft:poisonous_potato[minecraft:item_model=\"cnk:grapes\"," +
-                "minecraft:custom_data={cnk:{ingredient:{type:\"grapes\"}}}]"));
+                "minecraft:poisonous_potato[minecraft:item_model=\"cnk:" + id + "\"," +
+                "minecraft:custom_data={cnk:{ingredient:{type:\"" + id + "\"}}}]"));
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
