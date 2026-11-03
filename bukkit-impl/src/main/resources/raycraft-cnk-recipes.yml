@@ -1,0 +1,114 @@
+# RayCraft / Crop & Kettle v1.3.17 recipe overlay (opt-in)
+# This file is merged only into the separate TEST server's existing
+# plugins/TheBrewingProject/recipes.yml by the pinned RayCraft Ops bridge.
+# Do not overwrite RayCraft's other recipes or change production here.
+# C&K provides ingredients; TheBrewingProject owns cooking, distilling,
+# mixing, barrel aging, alcohol effects and finished bottles.
+recipes:
+  cnk_grape_brandy:
+    brew-difficulty: 7
+    modifiers:
+      alcohol: 16/20/23
+      toxins: 6/3/1
+    potion-attributes:
+      color: "925239"
+      name: Rough Grape Brandy/Grape Brandy/Fine Grape Brandy
+      lore:
+        - "<gray>Distilled from estate-grown grapes</gray>"
+    steps:
+      - type: cook
+        cauldron-type: water
+        cook-time: 8
+        ingredients:
+          - cnk:grapes/8
+      - type: distill
+        runs: 3
+      - type: age
+        age-years: 6
+        barrel-type: dark_oak
+
+  cnk_rice_sake:
+    brew-difficulty: 5
+    modifiers:
+      alcohol: 5/7/9
+      toxins: 3/1/0
+    potion-attributes:
+      color: "e8e1bd"
+      name: Cloudy Rice Sake/Rice Sake/Clear Rice Sake
+      lore:
+        - "<gray>Brewed from cultivated rice</gray>"
+    steps:
+      - type: cook
+        cauldron-type: water
+        cook-time: 6
+        ingredients:
+          - cnk:rice/8
+      - type: age
+        age-years: 3
+        barrel-type: bamboo
+
+  cnk_corn_whiskey:
+    brew-difficulty: 7
+    modifiers:
+      alcohol: 12/17/20
+      toxins: 7/3/1
+    potion-attributes:
+      color: "c18a4b"
+      name: Raw Corn Whiskey/Corn Whiskey/Single-Barrel Corn Whiskey
+      lore:
+        - "<gray>Aged from a corn and wheat mash</gray>"
+    steps:
+      - type: cook
+        cauldron-type: water
+        cook-time: 12
+        ingredients:
+          - cnk:corn/8
+          - wheat/2
+      - type: distill
+        runs: 4
+      - type: age
+        age-years: 8
+        barrel-type: oak
+
+  cnk_spiced_rum:
+    brew-difficulty: 5
+    modifiers:
+      alcohol: 15/19/22
+      toxins: 6/3/1
+    effects:
+      - "+++speed/0/8"
+    potion-attributes:
+      color: "a14b29"
+      name: Harsh Spiced Rum/Spiced Rum/Fine Spiced Rum
+      lore:
+        - "<gray>Rum infused with a modest pepper kick</gray>"
+    steps:
+      - type: mix
+        cauldron-type: brew
+        mix-time: 2
+        ingredients:
+          - brewery:rum/2
+          - cnk:chili_pepper/1
+          - sugar/1
+
+  cnk_mulled_wine:
+    brew-difficulty: 4
+    modifiers:
+      alcohol: 7/8/10
+      toxins: 4/2/0
+    effects:
+      - "+++resistance/0/8"
+    potion-attributes:
+      color: "962b46"
+      name: Overheated Mulled Wine/Mulled Wine/Well-Spiced Mulled Wine
+      lore:
+        - "<gray>Wine warmed with cinnamon and apple</gray>"
+    steps:
+      - type: mix
+        cauldron-type: brew
+        mix-time: 3
+        ingredients:
+          - brewery:wine/2
+          - cnk:cinnamon/1
+          - apple/1
+          - sugar/1
