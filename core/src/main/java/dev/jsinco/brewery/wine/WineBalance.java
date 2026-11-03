@@ -37,12 +37,17 @@ public final class WineBalance {
                 return Optional.empty();
             }
             String name = entry.getKey().toUpperCase(Locale.ROOT);
-            if (!"SWEET_BERRIES".equals(name) && !CAPS.containsKey(name)) {
+            if (!"SWEET_BERRIES".equals(name) && !"CNK_GRAPES".equals(name) && !CAPS.containsKey(name)) {
                 return Optional.empty();
             }
             ingredients.merge(name, entry.getValue(), Integer::sum);
         }
-        int berries = ingredients.getOrDefault("SWEET_BERRIES", 0);
+        // C&K grapes form a separate wine base: no silent substitution of
+        // poisonous potatoes and no mixing different base-fruit types.
+        int sweetBerries = ingredients.getOrDefault("SWEET_BERRIES", 0);
+        int grapes = ingredients.getOrDefault("CNK_GRAPES", 0);
+        if (sweetBerries > 0 && grapes > 0) return Optional.empty();
+        int berries = grapes > 0 ? grapes : sweetBerries;
         if (berries < 5 || berries > 12 || ingredients.size() > 3) {
             return Optional.empty();
         }
@@ -68,11 +73,13 @@ public final class WineBalance {
         int nourishment = Math.min(2, (apple > 0 ? 1 : 0) + (honey > 0 ? 2 : 0) + (melon > 0 ? 1 : 0));
         boolean restorative = apple > 0 && honey > 0;
         boolean quickstep = cocoa > 0 && sugar > 0;
-        String style = melon > 0 ? "Light Berry Wine"
-                : honey > 0 ? "Honeyed Berry Wine"
-                : cocoa > 0 ? "Rich Berry Wine"
-                : apple > 0 ? "Orchard Berry Wine"
-                : glow > 0 ? "Tart Berry Wine" : "Red Wine";
+        String style = grapes > 0
+                ? (melon > 0 ? "Light Grape Wine" : honey > 0 ? "Honeyed Grape Wine"
+                : cocoa > 0 ? "Rich Grape Wine" : apple > 0 ? "Orchard Grape Wine"
+                : glow > 0 ? "Tart Grape Wine" : "Grape Wine")
+                : (melon > 0 ? "Light Berry Wine" : honey > 0 ? "Honeyed Berry Wine"
+                : cocoa > 0 ? "Rich Berry Wine" : apple > 0 ? "Orchard Berry Wine"
+                : glow > 0 ? "Tart Berry Wine" : "Red Wine");
 
         return Optional.of(new Plan(Map.copyOf(ingredients), cookingSeconds, agingYears,
                 alcohol, toxinReduction, nourishment, restorative, quickstep, style,
