@@ -49,6 +49,31 @@ class WineGameplayTest {
         Field enabled = Config.class.getDeclaredField("raycraftWinemakingEnabled");
         enabled.setAccessible(true);
         enabled.set(Config.config(), true);
+        // The production wine recipe is read asynchronously from YAML.
+        // MockBukkit's scheduler deliberately does not complete those tasks:
+        // install a deterministic legacy fixture rather than relying on test
+        // order or a race with asynchronous startup.
+        var originalWine = new dev.jsinco.brewery.recipes.RecipeImpl.Builder<ItemStack>("wine")
+                .steps(List.of(
+                        new CookStepImpl(new PassedMoment(
+                                7L * Config.config().cauldrons().cookingMinuteTicks()),
+                                Map.of(SimpleIngredient.from("sweet_berries").orElseThrow(), 5),
+                                CauldronType.WATER),
+                        new dev.jsinco.brewery.brew.DistillStepImpl(1),
+                        new AgeStepImpl(new PassedMoment(
+                                4L * Config.config().barrels().agingYearTicks()), BarrelTypes.SPRUCE)
+                ))
+                .recipeResults(dev.jsinco.brewery.api.recipe.QualityData.fromValueMapper(q ->
+                        new dev.jsinco.brewery.bukkit.recipe.BukkitRecipeResult.Builder()
+                                .name("Legacy Red Wine")
+                                .recipeEffects(new dev.jsinco.brewery.bukkit.recipe.RecipeEffectsImpl.Builder().build())
+                                .build()))
+                .build();
+        if (plugin.getRecipeRegistry().getRecipe("wine").isEmpty()) {
+            plugin.getRecipeRegistry().registerRecipe(originalWine);
+        }
+        assertTrue(plugin.getRecipeRegistry().getRecipe("wine").isPresent(),
+                "Dynamic wine recipes require a registered legacy wine identifier");
     }
 
     @AfterEach
