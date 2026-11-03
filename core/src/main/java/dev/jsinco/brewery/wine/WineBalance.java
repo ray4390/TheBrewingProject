@@ -52,7 +52,7 @@ public final class WineBalance {
             return Optional.empty();
         }
         for (Map.Entry<String, Integer> entry : ingredients.entrySet()) {
-            if (!"SWEET_BERRIES".equals(entry.getKey())
+            if (!"SWEET_BERRIES".equals(entry.getKey()) && !"CNK_GRAPES".equals(entry.getKey())
                     && entry.getValue() > CAPS.get(entry.getKey())) {
                 return Optional.empty();
             }
